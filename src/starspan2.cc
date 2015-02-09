@@ -2,7 +2,7 @@
 // STARSpan project
 // Carlos A. Rueda
 // starspan2 
-// $Id: starspan2.cc,v 1.33 2008-03-04 02:41:53 crueda Exp $
+// $Id: starspan2.cc,v 1.43 2008-05-03 01:29:40 crueda Exp $
 //
 
 #include <geos/version.h>
@@ -70,13 +70,12 @@ static void usage(const char* msg) {
 		"      --calbase <link> <filename> [<stats>...]\n"
 		"      --in   \n"
 		"      --mini_rasters <prefix> \n"
-		"      --mini_raster_strip <filename> \n"
+		"      --mini_raster_strip <filename> [<shpname>]\n"
 		"      --mini_raster_parity {even | odd | @<field>} \n"
 		"      --separation <num-pixels> \n"
 		"\n"
 		"      --duplicate_pixel <mode> ...\n"
-		"             <mode>: distance | direction <angle> | ignore_nodata\n"
-		"             (note: ignore_nodata not implemented yet.)\n"
+		"             <mode>: distance | direction <angle>\n"
 		"      --fields <field1> <field2> ... <fieldn>\n"
 		"      --pixprop <minimum-pixel-proportion>\n"
 		"      --noColRow \n"
@@ -88,6 +87,7 @@ static void usage(const char* msg) {
 		"      --skip_invalid_polys \n"
 		"      --nodata <value> \n"
 		"      --buffer <distance> [<quadrantSegments>] \n"
+		"      --box <width> [<height>] \n"
 		"      --RID {file | path | none}\n"
 		"      --delimiter <separator>\n"
 		"      --progress [<value>] \n"
@@ -118,10 +118,7 @@ static void usage_string(string& msg) {
 ///////////////////////////////////////////////////////////////
 // main test program
 int main(int argc, char ** argv) {
-	if ( argc == 1 ) {
-		usage(NULL);
-	}
-	
+    
 	globalOptions.use_pixpolys = false;
 	globalOptions.skip_invalid_polys = false;
 	globalOptions.pix_prop = -1.0;
@@ -137,9 +134,21 @@ int main(int argc, char ** argv) {
 	globalOptions.nodata = 0.0;
 	globalOptions.bufferParams.given = false;
 	globalOptions.bufferParams.quadrantSegments = "1";
+	globalOptions.boxParams.given = false;
 	globalOptions.mini_raster_parity = "";
 	globalOptions.mini_raster_separation = 0;
 	globalOptions.delimiter = ",";
+    
+
+	if ( use_grass(&argc, argv) ) {
+		return starspan_grass(argc, argv);
+	}
+	
+	if ( argc == 1 ) {
+		usage(NULL);
+	}
+	
+    RasterizeParams rasterizeParams;
 	
 
 	bool report_elapsed_time = false;
@@ -156,6 +165,7 @@ int main(int argc, char ** argv) {
 	const char*  mini_prefix = NULL;
 	const char*  mini_srs = NULL;
 	const char* mini_raster_strip_filename = NULL;
+	const char* mini_raster_strip_shpfilename = NULL;
 	const char* jtstest_filename = NULL;
 	
 	const char* vector_filename = 0;
@@ -256,18 +266,15 @@ int main(int argc, char ** argv) {
 					else {
 						usage("direction: missing angle parameter");
 					}
+                    globalOptions.dupPixelModes.push_back(DupPixelMode(dup_code, dup_arg));
 				}
 				else if ( dup_code == "distance" ) {
-					// OK.
-				}
-				else if ( dup_code == "ignore_nodata" ) {
-					// OK.
+                    globalOptions.dupPixelModes.push_back(DupPixelMode(dup_code));
 				}
 				else {
 					string msg = string("--duplicate_pixel: unrecognized mode: ") +dup_code;
 					usage_string(msg);
 				}
-				globalOptions.dupPixelModes.push_back(DupPixelMode(dup_code, dup_arg));
 			}
 			if ( globalOptions.dupPixelModes.size() == 0 ) {
 				usage("--duplicate_pixel: specify at least one mode");
@@ -342,6 +349,9 @@ int main(int argc, char ** argv) {
 			if ( ++i == argc || argv[i][0] == '-' )
 				usage("--mini_raster_strip: filename?");
 			mini_raster_strip_filename = argv[i];
+            if ( 1 + i < argc && argv[1 + i][0] != '-' ) {
+                mini_raster_strip_shpfilename = argv[++i];
+            }
 		}
 		
 		else if ( 0==strcmp("--mini_rasters", argv[i]) ) {
@@ -350,6 +360,15 @@ int main(int argc, char ** argv) {
 			mini_prefix = argv[i];
 		}
 		
+		else if ( 0==strcmp("--rasterize", argv[i]) ) {
+			if ( ++i == argc || argv[i][0] == '-' ) {
+				usage("--rasterize: output raster name?");
+            }
+			rasterizeParams.outRaster_filename = argv[i];
+            rasterizeParams.fillNoData = true;
+            // TODO: accept other parameters
+		}
+        
 		else if ( 0==strcmp("--envi", argv[i]) || 0==strcmp("--envisl", argv[i]) ) {
 			envi_image = 0==strcmp("--envi", argv[i]);
 			if ( ++i == argc || argv[i][0] == '-' )
@@ -399,6 +418,20 @@ int main(int argc, char ** argv) {
 			if ( i+1 < argc && strncmp(argv[i+1], "--", 2) != 0 )
 				globalOptions.bufferParams.quadrantSegments = argv[++i];
 			globalOptions.bufferParams.given = true;				
+		}
+		
+		else if ( 0==strcmp("--box", argv[i]) ) {
+			if ( ++i == argc || strncmp(argv[i], "--", 2) == 0 ) {
+				usage("--box: missing argument");
+            }
+            string bw = argv[i];
+            string bh = bw;
+            if ( 1 + i < argc && strncmp(argv[1 + i], "--", 2) != 0 ) {
+                bh = argv[++i];
+            }
+            globalOptions.boxParams.width  = atof(bw.c_str());
+            globalOptions.boxParams.height = atof(bh.c_str());
+            globalOptions.boxParams.given = true;
 		}
 		
 		else if ( 0==strcmp("--mini_raster_parity", argv[i]) ) {
@@ -533,8 +566,11 @@ int main(int argc, char ** argv) {
 	}
 	// ---------------------------------------------------------------------
 	
-	////CPLPushErrorHandler(starspan_myErrorHandler);
-
+    
+    if ( globalOptions.bufferParams.given && globalOptions.boxParams.given ) {
+        usage("Only one of --buffer/--box may be given");
+    }
+    
 	time_t time_start = time(NULL);
 	
 	// module initialization
@@ -606,6 +642,11 @@ int main(int argc, char ** argv) {
             }
         }
     }
+    
+    if ( starspan_validate_rasters_and_masks(vect, vector_layernum, raster_filenames, masks) ) {
+        usage("invalid inputs; check error messages");
+    }        
+    
 
 	if ( globalOptions.dupPixelModes.size() > 0 ) {
 		if ( globalOptions.verbose ) {
@@ -615,8 +656,8 @@ int main(int argc, char ** argv) {
 			}
 		}
 		
-		if ( !csv_name && !mini_prefix) {
-			usage("--duplicate_pixel: No --csv or --mini_rasters command!");
+		if ( !csv_name && !mini_prefix && !mini_raster_strip_filename ) {
+			usage("--duplicate_pixel work with: --csv, --mini_rasters, or mini_raster_strip");
 		}
 	}
 	
@@ -653,15 +694,6 @@ int main(int argc, char ** argv) {
                 globalOptions.dupPixelModes,
                 csv_name
             );
-			//res = starspan_csv_dup_pixel(
-			//	vect,  
-			//	raster_filenames,
-			//	masks,
-			//	select_fields, 
-			//	csv_name,
-			//	vector_layernum,
-			//	globalOptions.dupPixelModes
-			//);
 		}
 		else if ( raster_filenames.size() > 0 ) {
 			res = starspan_csv(
@@ -678,7 +710,6 @@ int main(int argc, char ** argv) {
 	}
     
     else if ( mini_prefix && globalOptions.dupPixelModes.size() > 0 ) {
-        // testing this new implementation:
         res = starspan_miniraster2(
             vect,  
             raster_filenames,
@@ -688,6 +719,18 @@ int main(int argc, char ** argv) {
             globalOptions.dupPixelModes,
             mini_prefix,
             mini_srs
+        );
+    }
+
+    else if ( mini_raster_strip_filename && globalOptions.dupPixelModes.size() > 0 ) {
+        res = starspan_minirasterstrip2(
+            vect,  
+            raster_filenames,
+            masks,
+            select_fields, 
+            vector_layernum,
+            globalOptions.dupPixelModes,
+            mini_raster_strip_filename, mini_raster_strip_shpfilename
         );
     }
 
@@ -795,6 +838,16 @@ int main(int argc, char ** argv) {
 			}
 			tr.setBufferParameters(globalOptions.bufferParams);
 		}
+		else if ( globalOptions.boxParams.given ) {
+			if ( globalOptions.verbose ) {
+				cout<< "Using fixed box parameters:"
+				    << "\n\twidth = " <<globalOptions.boxParams.width
+				    << "\n\theight = " <<globalOptions.boxParams.height
+					<<endl;
+				;
+			}
+			tr.setBoxParameters(globalOptions.boxParams);
+		}
 			
 		if ( csv_name || envi_name || mini_prefix || mini_raster_strip_filename || jtstest_filename) { 
 			if ( tr.getNumRasters() == 0 || !tr.getVector() ) {
@@ -837,19 +890,32 @@ int main(int argc, char ** argv) {
 		}
 	
 		if ( mini_raster_strip_filename ) {
-			Observer* obs = starspan_getMiniRasterStripObserver(tr, mini_raster_strip_filename);
-			if ( obs )
+			Observer* obs = starspan_getMiniRasterStripObserver(
+                tr, mini_raster_strip_filename, mini_raster_strip_shpfilename
+            );
+			if ( obs ) {
 				tr.addObserver(obs);
+            }
 		}
 	
 		if ( mini_prefix ) {
-			//OLD: starspan_minirasters(tr, mini_prefix, mini_srs);
-			//NEW:
-			Observer* obs = starspan_getMiniRasterObserver(tr, mini_prefix, mini_srs);
-			if ( obs )
+			Observer* obs = starspan_getMiniRasterObserver(mini_prefix, mini_srs);
+			if ( obs ) {
 				tr.addObserver(obs);
+            }
 		}
 	
+		if ( rasterizeParams.outRaster_filename ) {
+            GDALDataset* ds = tr.getRaster(0)->getDataset();
+            rasterizeParams.projection = ds->GetProjectionRef();
+            ds->GetGeoTransform(rasterizeParams.geoTransform);
+			Observer* obs = starspan_getRasterizeObserver(&rasterizeParams);
+			if ( obs ) {
+				tr.addObserver(obs);
+            }
+		}
+	
+
 		// the following don't use Observer scheme;  
 		// just call corresponding functions:	
 		if ( show_fields ) {
@@ -892,7 +958,6 @@ end:
 	Raster::end();
 	
 	// more final cleanup:
-	////CPLPopErrorHandler();
 	Unload::Release();	
 	
 	if ( report_elapsed_time ) {

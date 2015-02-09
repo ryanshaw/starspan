@@ -1,6 +1,10 @@
 BUILD on windows
-$Id: BUILD.windows.txt,v 1.2 2007-10-19 19:15:39 crueda Exp $
+$Id: BUILD.windows.txt,v 1.3 2008-03-28 01:30:06 crueda Exp $
 
+2008-03-27
+    See http://starspan.casil.ucdavis.edu/doku/doku.php?id=mingw
+    
+    
 2007-10-19
 	- Windows version with LFS is now successful
 	TODO: update this notes accordingly.

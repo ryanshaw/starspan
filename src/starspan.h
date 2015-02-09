@@ -1,7 +1,7 @@
 //
 // starspan declarations
 // Carlos A. Rueda
-// $Id: starspan.h,v 1.26 2008-02-04 23:13:21 crueda Exp $
+// $Id: starspan.h,v 1.36 2008-05-03 01:29:40 crueda Exp $
 //
 
 #ifndef starspan_h
@@ -95,31 +95,6 @@ int starspan_tuct_2(
 	const char* speclib_filename,
 	const char* link_name,
 	vector<const char*> select_stats,
-	const char* calbase_filename
-);
-
-
-/**
-  * Generates a CSV file with the following columns:
-  *     FID, RID, BandNumber, FieldBandValue, ImageBandValue
-  * where:
-  *     FID:          feature ID as given by OGRFeature#GetFID()
-  *     RID           raster filename
-  *     BandNumber    1 .. N
-  *     FieldBandValue  value from input speclib
-  *     ImageBandValue  MEAN value for BandNumber in RID
-  *
-  * @param vector_filename Vector datasource
-  * @param raster_filenames rasters
-  * @param speclib_filename spectral library file name
-  * @param calbase_filename output file name
-  *
-  * @return 0 iff OK 
-  */
-int starspan_tuct_1(
-	const char* vector_filename,
-	vector<const char*> raster_filenames,
-	const char* speclib_filename,
 	const char* calbase_filename
 );
 
@@ -329,7 +304,6 @@ Observer* starspan_jtstest(
 /**
   * Creates mini-rasters.
   *
-  * @param tr Data traverser
   * @param prefix
   * @param pszOutputSRS 
   *		see gdal_translate option -a_srs 
@@ -338,7 +312,6 @@ Observer* starspan_jtstest(
   * @return observer to be added to traverser. 
   */
 Observer* starspan_getMiniRasterObserver(
-	Traverser& tr,
 	const char* prefix,
 	const char* pszOutputSRS
 );
@@ -349,13 +322,15 @@ Observer* starspan_getMiniRasterObserver(
   * Creates a strip of mini-rasters.
   *
   * @param tr Data traverser
-  * @param filename  Name used to create output files
+  * @param basefilename  Base name used to create output files
+  * @param shpfilename If non-null, name to create output shapefile
   *
   * @return observer to be added to traverser. 
   */
 Observer* starspan_getMiniRasterStripObserver(
 	Traverser& tr,
-	const char* filename
+	const char* basefilename,
+    const char* shpfilename
 );
 
 
@@ -370,7 +345,6 @@ void starspan_report(Traverser& tr);
 
 void starspan_print_envelope(FILE* file, const char* msg, OGREnvelope& env);
 
-void starspan_myErrorHandler(CPLErr eErrClass, int err_no, const char *msg);
 
 /** 
   * Creates a raster by subsetting a given raster
@@ -507,12 +481,31 @@ inline void starspan_simplify_filename(string& filename) {
 ////////////////////////////////////////////////////////////////////////////////
 // general raster selection processing
 
+/**
+ * A pair (feature,raster) indicating the selected raster to extract
+ * data from for and feature.
+ */
 struct ExtractionItem {
     OGRFeature* feature;
     const char* rasterFilename;
 };
 
 
+/**
+ * Performs extraction on a per feature basis: for each feature, it selects
+ * a raster from the given list of raster and calls the provided 
+ * extractionFunction with the corresponding extraction item.
+ *
+ * @param vect List of features
+ * @param raster_filenames List of rasters
+ * @param mask_filenames List of corresponding masks for the rasters
+ * @param select_fields List of desired fields
+ * @param layernum
+ * @param dupPixelModes Modes for duplicate pixel handling
+ * @param extractionFunction Function to call for each extraction item.
+ *
+ * @return 0 iff successful.
+ */
 int starspan_dup_pixel(
 	Vector* vect,
 	vector<const char*> raster_filenames,
@@ -545,6 +538,162 @@ int starspan_miniraster2(
     const char*  _mini_prefix,
     const char*  _mini_srs
 );
+
+
+//////////////////////////////////////////////////////////////////////
+// <GRASS>
+
+/**
+ * Determines if the GRASS interface should be used.
+ * This is the case if the following conditions are met:
+ *   - The program has been compiled with GRASS support, and
+ *   - The program is running within the GRASS environment, and
+ *   - The first argument is not "S" (for standard interface).
+ * Updates the argument info if necessary.
+ */
+bool use_grass(int *argc, char ** argv);
+
+/** The GRASS interface */
+int starspan_grass(int argc, char ** argv);
+
+// </GRASS>
+//////////////////////////////////////////////////////////////////////
+
+
+struct RasterizeParams {
+    const char* outRaster_filename; 
+    int rastValue;
+    bool fillNoData;
+    const char* rastFormat;
+    const char* projection;
+    double* geoTransform;
+    
+    RasterizeParams() : 
+        outRaster_filename(0), 
+        rastValue(1), 
+        fillNoData(true),
+        rastFormat("ENVI"),
+        projection(0),
+        geoTransform(new double[6])
+    {
+        for ( int i = 0; i < 6; i++ ) {
+            geoTransform[i] = 0;
+        }
+        geoTransform[1] = geoTransform[5] = 1;
+    }
+    
+    ~RasterizeParams() {
+        delete geoTransform;
+    }
+};
+Observer* starspan_getRasterizeObserver(RasterizeParams* rasterizeParams);
+
+
+
+/** 
+ * Creates a layer for a given vector.
+ * It copies the definition of all fields from input layer.
+ *
+ * @return The created layer.
+ */
+OGRLayer* starspan_createLayer(
+    OGRLayer* inLayer,           // source layer
+    Vector* outVector,           // vector where layer will be created
+    const char *outLayerName     // name for created layer
+);
+
+
+/** 
+ * Validates the mutual consistency of the given list of elements.
+ * <p>
+ * Consistency requires that all given elements have:
+ * <ul>
+ *  <li> the same projection
+ *  <li> the same pixel size in the case of rasters
+ * </ul>
+ *
+ * @return 0 iff OK
+ */
+int starspan_validate_rasters_and_masks(
+    Vector* vect,
+    int vector_layernum,
+	vector<const char*> raster_filenames,
+	vector<const char*> *mask_filenames
+);
+
+
+///////////////////////////////////////////////////
+// mini raster basic information; A list of these elements
+// is gathered by the main miniraster generator and then used by
+// the strip generator to properly locate the minirasters within the strip.
+//
+struct MRBasicInfo {
+	// corresponding FID from which the miniraster was extracted
+	long FID;
+    
+    string mini_filename;
+	
+	// dimensions of this miniraster
+	int width;
+	int height;
+    
+    // row to locate this miniraster in strip:
+    int mrs_row;
+	
+	MRBasicInfo(long FID, string& mini_filename, int width, int height, int mrs_row) : 
+		FID(FID), mini_filename(mini_filename), width(width), height(height), mrs_row(mrs_row)
+	{}
+    
+    /** Returns the next row just below this miniraster */
+    int getNextRow() {
+        return mrs_row + height;
+    }
+};
+
+
+/**
+  * Creates output strips according to the minirasters registered in mrbi_list.
+  */
+void starspan_create_strip(
+    GDALDataType strip_band_type,
+    int strip_bands,
+    string prefix,
+    vector<MRBasicInfo>* mrbi_list,
+    string basefilename
+);
+
+
+/**
+ * Called by starspan_minirasterstrip2()
+ * Creates a MiniRasterStripObserver with NO ownership over the
+ * given output vector and layer, which could be null.
+ * Ownership won't be taken over the mrbi_list either.
+ * This observer won't call starspan_create_strip() at the end of each 
+ * traversal-- the caller will presumably do that.
+ */
+Observer* starspan_getMiniRasterStripObserver2(
+	const char* basefilename,
+    const char* prefix,
+    Vector* outVector,
+    OGRLayer* outLayer,
+    vector<MRBasicInfo>* mrbi_list
+);
+
+
+/**
+ * generates a miniraster strip from multiple rasters with duplicate pixel handling
+ */
+int starspan_minirasterstrip2(
+	Vector* _vect,
+	vector<const char*> raster_filenames,
+	vector<const char*> *mask_filenames,
+	vector<const char*>* _select_fields,
+	int _layernum,
+	vector<DupPixelMode>& dupPixelModes,
+    const char* basefilename,
+    const char* shpfilename
+);
+
 
 #endif
 

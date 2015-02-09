@@ -1,6 +1,6 @@
 #
 # Makefile for tests
-# $Id: Makefile,v 1.8 2007-12-01 22:04:24 crueda Exp $
+# $Id: Makefile,v 1.13 2008-05-08 00:42:21 crueda Exp $
 #
 
 STARSPAN=../starspan
@@ -17,34 +17,32 @@ init:
 test_csv:
 	mkdir -p generated/csv/
 	rm -f generated/csv/*.csv
-	$(shell if [ -f expected/csv/myoutput.csv.gz ]; then gunzip expected/csv/myoutput.csv.gz; fi)
 	${STARSPAN} \
-		--vector data/vector/starspan_testply.shp \
+		--vector data/vector/ply \
 		--raster data/raster/starspan[1-3]raster.img \
 		--csv generated/csv/myoutput.csv
-	diff expected/csv/myoutput.csv generated/csv/myoutput.csv
+	zcat expected/csv/myoutput.csv.gz | diff - generated/csv/myoutput.csv
 	@echo "$@ : OK"
 	@echo
 	
 test_stats:
 	mkdir -p generated/stats/
 	rm -f generated/stats/*.csv
-	$(shell if [ -f expected/stats/myoutput.csv.gz ]; then gunzip expected/stats/myoutput.csv.gz; fi)
 	${STARSPAN} \
 		--verbose \
 		--fields none \
-		--vector data/vector/starspan_testply.shp \
+		--vector data/vector/ply \
 		--raster data/raster/starspan[1-3]raster.img \
 		--nodata 0 \
 		--stats generated/stats/myoutput.csv avg mode stdev min max sum median nulls
-	diff expected/stats/myoutput.csv generated/stats/myoutput.csv
+	zcat expected/stats/myoutput.csv.gz | diff - generated/stats/myoutput.csv
 	@echo "$@ : OK"
 	@echo
 	
 test_miniraster:
 	mkdir -p generated/miniraster/
 	${STARSPAN} \
-		--vector data/vector/starspan_testply.shp \
+		--vector data/vector/ply \
 		--raster data/raster/starspan2raster.img \
 		--mini_rasters generated/miniraster/myprefix_ \
 		--in \
@@ -53,7 +51,7 @@ test_miniraster:
 	cmp expected/miniraster/myprefix_0003.img \
 	   generated/miniraster/myprefix_0003.img
 	${STARSPAN} \
-		--vector data/vector/starspan_testply.shp \
+		--vector data/vector/ply \
 		--raster data/raster/starspan2raster.img \
 		--mini_rasters generated/miniraster/myprefix_buff2_ \
 		--in \
@@ -67,7 +65,7 @@ test_miniraster:
 test_miniraster_strip:
 	mkdir -p generated/mrstrip/
 	${STARSPAN} \
-		--vector data/vector/starspan_testply.shp \
+		--vector data/vector/ply \
 		--raster data/raster/starspan2raster.img \
 		--mini_raster_strip generated/mrstrip/myoutput \
 		--in
@@ -79,4 +77,31 @@ test_miniraster_strip:
 	   generated/mrstrip/myoutput_mrloc.glt
 	@echo "$@ : OK"
 	@echo
-	
+
+# preliminary generation of miniraster along with --box option	
+miniraster_box:
+	mkdir -p generated/miniraster_box/
+	${STARSPAN} \
+		--vector data/vector/ply \
+		--raster data/raster/starspan2raster.img \
+		--mini_rasters generated/miniraster_box/box_100_ \
+		--box 100
+
+# preliminary generation of miniraster strip along with --box option
+miniraster_strip_box:
+	mkdir -p generated/mrstrip_box/
+	${STARSPAN} \
+		--vector data/vector/ply \
+		--raster data/raster/starspan2raster.img \
+		--mini_raster_strip generated/mrstrip_box/box_100 generated/mrstrip_box/shp_box_100 \
+		--box 100 \
+		--separation 10
+        
+# preliminary rasterization with --rasterize option
+rasterize:
+	mkdir -p generated/rasterize/
+	${STARSPAN} \
+		--vector data/vector/ply \
+		--raster data/raster/starspan2raster.img \
+		--rasterize generated/rasterize/rasterized
+

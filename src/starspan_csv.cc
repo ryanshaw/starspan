@@ -2,7 +2,7 @@
 // STARSpan project
 // Carlos A. Rueda
 // starspan_csv - generate a CSV file from multiple rasters
-// $Id: starspan_csv.cc,v 1.10 2008-03-03 20:13:33 crueda Exp $
+// $Id: starspan_csv.cc,v 1.11 2008-04-11 19:15:12 crueda Exp $
 //
 
 #include "starspan.h"
@@ -118,8 +118,8 @@ public:
 	/**
 	  * Used here to update currentFeature
 	  */
-	void intersectionFound(OGRFeature* feature) {
-		currentFeature = feature;
+	void intersectionFound(IntersectionInfo& intersInfo) {
+		currentFeature = intersInfo.feature;
 	}
 	
 	

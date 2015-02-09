@@ -1,16 +1,19 @@
-//
-// Traverse
-// Carlos A. Rueda
-// $Id: traverser.h,v 1.27 2008-05-02 09:39:19 crueda Exp $
-//
-
-#ifndef traverser_h
-#define traverser_h
+/*
+	LayerRasterizer
+    Preliminary approach to refactor traverser mechanism.
+    Started: 2008-04-17
+	$Id: LayerRasterizer.h,v 1.1 2008-04-18 07:46:56 crueda Exp $
+*/
+#ifndef LayerRasterizer_h
+#define LayerRasterizer_h
 
 #include "common.h"
-#include "Raster.h"
-#include "Vector.h"
+#include "ogrsf_frmts.h"
+#include "cpl_conv.h"
+#include "cpl_string.h"
+
 #include "rasterizers.h"
+
 #include "Progress.h"
 
 #include <geos/version.h>
@@ -99,54 +102,91 @@ public:
 		PixSet* ps;
 		set<EPixel>::iterator colrow;
 		
-		Iterator(PixSet* ps);
+		Iterator(PixSet* ps) : ps(ps) { 
+            colrow = ps->_set.begin();
+        }
+        
 	public:
-		~Iterator();
-		bool hasNext();
-		void next(int *col, int *row);
+        ~Iterator() {}
+		bool hasNext(){
+            return colrow != ps->_set.end();
+        }
+		void next(int *col, int *row) {
+            *col = colrow->col;
+            *row = colrow->row;
+            colrow++;
+        }
 	};
 
-	PixSet();
-	~PixSet();
+	PixSet() {}
+	~PixSet() {}
 	
-	void insert(int col, int row);
-	int size();
-	bool contains(int col, int row);
-	void clear();
-	Iterator* iterator();
+	void insert(int col, int row) {
+        EPixel colrow(col, row);
+        _set.insert(colrow);
+    }
+    
+	int size() { return _set.size(); }
+    
+	bool contains(int col, int row) {
+        return _set.find(EPixel(col, row)) != _set.end() ;
+    }
+    
+	void clear() { _set.clear(); }
+    
+	Iterator* iterator() {
+        return new PixSet::Iterator(this);
+    }
 };
 
 
-/**
+
+
+/** ---- From: RastEvent
+  * Event sent to observers every time an intersecting pixel is found.
+  */
+struct RastEvent {
+	/**
+	  * Info about the location of pixels.
+	  */
+	struct {
+		/** 0-based [col,row] location relative to global grid.  */
+		int col;
+		int row;
+		
+		/** corresponding geographic location in global grid. */
+		double x;
+		double y;
+	} pixel;
+	
+	
+	RastEvent(int col, int row, double x, double y) {
+		pixel.col = col;
+		pixel.row = row;
+		pixel.x = x;
+		pixel.y = y;
+	}
+};
+
+
+
+/** ---- From GlobalInfo
   * Info passed in observer#init(info)
   */
-struct GlobalInfo {
+struct RastInfo {
 	
-	/** info about all bands in given rasters */
-	vector<GDALRasterBand*> bands;
-	                           
 	/** A rectangle covering the raster extension. */
 	OGRPolygon rasterPoly;
-    
-    /** Dimensions of the raster */
-    int width, height;
     
     /** The layer being traversed */
     OGRLayer* layer;
 };
 
 
-// forward declaration
-class Traverser;
-
-
-/**
+/** ---- from IntersectionInfo
   * Info passed in observer#intersection{Found,End} methods.
   */
-struct IntersectionInfo {
-    /** the traverser sending the notification */
-    Traverser* trv;
-    
+struct RastIntersectionInfo {
     /** Intersecting feature */
     OGRFeature* feature;
     
@@ -162,87 +202,46 @@ struct IntersectionInfo {
 };
 
 
-/**
-  * Event sent to traversal observers every time an intersecting
-  * pixel is found.
-  * Note that all pixel locations are 0-based, with [0,0] denoting
-  * the upper left corner pixel.
-  */
-struct TraversalEvent {
-	/**
-	  * Info about the location of pixels.
-	  */
-	struct {
-		/** 0-based [col,row] location relative to global grid.  */
-		int col;
-		int row;
-		
-		/** corresponding geographic location in global grid. */
-		double x;
-		double y;
-	} pixel;
-	
-	
-	/**
-	  * data from pixel in scanned raster.
-	  * Only assigned if observer#isSimple() is false.
-	  */
-	void* bandValues;
-	
-	TraversalEvent(int col, int row, double x, double y) {
-		pixel.col = col;
-		pixel.row = row;
-		pixel.x = x;
-		pixel.y = y;
-	}
-};
+
+
+
 
 /**
-  * Any object interested in doing some task as geometries are
-  * traversed must implement this interface.
+  * Any object interested in doing some task as pixels are
+  * found must implement this interface.
   */
-class Observer {
+class LayerRasterizerObserver {
 public:
-	virtual ~Observer() {}
-	
-	/**
-	  * Returns true if this observer is only interested in the location of
-	  * intersecting pixels, in which case traversal event objects will
-	  * be filled with only info about the pixel location.
-      * This base class returns false, so events in addPixel notifications
-      * will contain band values as well.
-	  */
-	virtual bool isSimple(void) { return false; }
+	virtual ~LayerRasterizerObserver() {}
 	
 	/**
 	  * Called only once at the beginning of a traversal processing.
 	  */
-	virtual void init(GlobalInfo& info) {}
+	virtual void init(RastInfo& info) {}
 	
 	/**
 	  * A new intersecting feature has been found.
       * @param intersInfo
 	  */
-	virtual void intersectionFound(IntersectionInfo& intersInfo) {}
+	virtual void intersectionFound(RastIntersectionInfo& intersInfo) {}
 	
 	/**
 	  * Processing of intersecting feature has finished.  
       * @param intersInfo
 	  */
-	virtual void intersectionEnd(IntersectionInfo& intersInfo) {}
+	virtual void intersectionEnd(RastIntersectionInfo& intersInfo) {}
 	
 	/**
-	  * A new pixel location has been computed.
-	  * @param ev Associated event. Pixel location is always provided
-	  * but raster bands are given only if isSimple() returns false.
+	  * Called when a new pixel location is computed as part
+	  * of a rasterization.
 	  */
-	virtual void addPixel(TraversalEvent& ev) {}
+	virtual void addPixel(RastEvent& ev) {}
 
 	/**
 	  * Called only once at the end of a traversal processing.
 	  */
 	virtual void end(void) {}
-	
+    
 };
 
 
@@ -264,154 +263,43 @@ inline Polygon* create_pix_poly(double x0, double y0, double x1, double y1) {
 }
 
 
-	
-
-
-
 /**
-  * A Traverser intersects every geometry feature in a vector datasource
-  * with a raster dataset. Observer should be registered for the
-  * actual work to be done.
-  *
-  * synopsis of usage:
-  *
-  * <pre>
-  *		// create traverser:
-  *		Traverser tr;
-  *
-  *		// give inputs:
-  *		tr.setVector(v);
-  *		tr.addRaster(r1);
-  *		tr.addRaster(r2);
-  *		...
-  *		
-  *		// optionally
-  *		tr.setPixelProportion(pp);
-  *		tr.setDesiredFID(fid);
-  *
-  *		// add observers:  
-  *		tr.addObserver(observer1);
-  *		tr.addObserver(observer2);
-  *		...
-  *
-  *		// run processing:
-  *		tr.traverse();
-  * </pre>
-  */
-class Traverser : LineRasterizerObserver {
+ * Rasterizes the features in a given OGRLayer.
+ */
+class LayerRasterizer : LineRasterizerObserver {
 public:
-
 	/**
-	  * Creates a traverser.
-	  */
-	Traverser(void);
+     * Creates a LayerRasterizer. 
+     */
+	LayerRasterizer(
+        OGRLayer* layer,
+        int width, int height,
+        double x0, double y0, double x1, double y1,
+        double pix_x_size, double pix_y_size
+    );   
 	
-	~Traverser();
+	/** destroys this object. */
+	~LayerRasterizer();
 	
-	/**
-	  * Sets the vector datasource.
-	  * (eventually this would become addVector)
-	  * @param v vector datadource
-	  */
-	void setVector(Vector* vector);
-
-	/**
-	  * Sets the vector datasource.
-	  * (eventually this would become addVector)
-	  * @param v vector datadource
-	  */
-	void setLayerNum(int vector_layernum);
-
-	/**
-	  * Gets the vector associated to this traverser.
-	  */
-	Vector* getVector(void) { return vect; }
-	
-	/**
-	  * Gets the layernumber for the vector associated to this traverser.
-	  */
-	int getLayerNum(void) { return layernum; }
-	
-	/**
-	  * Adds a raster.
-	  * @param r the raster dataset
-	  */
-	void addRaster(Raster* raster);
-	
-	/**
-	  * Gets the number of rasters.
-	  */
-	int getNumRasters(void) { return rasts.size(); }
-
-	/**
-	  * Gets a raster from the list of rasters.
-	  */
-	Raster* getRaster(int i) { return rasts[i]; }
-	
-	
-	/** 
-	  * Clear the list of rasters.
-	  */
-	void removeRasters(void);
+	/** Gets the layer given in constructor. */
+	OGRLayer* getLayer() { return layer; } 
 	
 	/**
 	  * Sets the proportion of intersected area required for a pixel to be included.
 	  * This parameter is only used during processing of polygons.
-	  * By default, a point-in-poly criterion is used: if the polygon contains 
-	  * the upper left corner of the pixel, then the pixel is included.
 	  *
 	  * @param pixprop A value assumed to be in [0.0, 1.0].
 	  */
-	void setPixelProportion(double pixprop);
+    void setPixelProportion(double pixprop) {
+        pixelProportion = pixprop; 
+    }
 
 	/**
-	  * Sets the vector selection parameters. 
-	  *
-	  * @param vsp the parameters.
+	  * Adds an observer to this rasterizer.
 	  */
-    void setVectorSelectionParams(VectorSelectionParams vsp) { vSelParams = vsp; }
-
-	/**
-	  * Only the given FID will be processed.
-	  *
-	  * @param FID  a FID.
-	  */
-	void setDesiredFID(long FID);
-
-	/**
-	  * Only the feature whose given field is equal to the given value
-	  * FID will be processed.
-	  * This method will have no effect if setDesiredFID(FID) is called with
-	  * a valid FID.
-	  *
-	  * @param field_name Name of field
-	  * @param field_value Value of the field
-	  */
-	void setDesiredFeatureByField(const char* field_name, const char* field_value);
-	
-	/**
-	  * Sets parameters to apply the buffer operation on geometry features
-	  * before computing the intersection.
-	  * By default, no buffer operation will be applied.
-	  *
-	  * @param bufferParams      See description in common.h
-	  */
-	void setBufferParameters(BufferParams bufferParams);
-	
-	/**
-	  * Sets parameters to use a fixed box centered according to bounding box
-      * of the geometry features before computing the intersection.
-	  * By default, no box is used.
-	  *
-	  * @param boxParams      See description in common.h
-	  */
-	void setBoxParameters(BoxParams boxParams);
-	
-	
-	/**
-	  * Adds an observer to this traverser.
-	  */
-	void addObserver(Observer* aObserver);
+    void addObserver(LayerRasterizerObserver* aObserver) {
+        observers.push_back(aObserver);
+    }
 
 	/**
 	  * Gets the number of observers associated to this traverser.
@@ -419,54 +307,13 @@ public:
 	unsigned getNumObservers(void) { return observers.size(); } 
 
 	/**
-	  * convenience method to delete the observers associated to this traverser.
+	  * convenience method to delete the observers associated with this traverser.
 	  */
-	void releaseObservers(void);
+    void releaseObservers(void) {
+        for ( vector<LayerRasterizerObserver*>::const_iterator obs = observers.begin(); obs != observers.end(); obs++ )
+            delete *obs;
+    }
 
-	
-	/**
-	  * Gets the (minimum) size in bytes for a buffer to store 
-	  * all band values. The result of this call varies as more
-	  * rasters are added to this traverser.
-	  *
-	  * @return size in bytes.
-	  */
-	size_t getBandBufferSize(void) {
-		return minimumBandBufferSize;
-	}
-	
-	/**
-	  * Gets the values in integer type corresponding to the set of
-	  * visited pixels in current traversed feature.
-	  * @param band_index Desired band. Note that 1 corresponds to the first band
-	  *              (to keep consistency with GDAL).
-	  * @param list Where values are to be added.
-	  *             Note that a 0 will be added where (col,row) is not valid.
-	  * @return 0 iff OK.
-	  */
-	int getPixelIntegerValuesInBand(unsigned band_index, vector<int>& list);
-	
-	/**
-	  * Gets the values in double type corresponding to the set of
-	  * visited pixels in current traversed feature.
-	  * @param band_index Desired band. Note that 1 corresponds to the first band
-	  *              (to keep consistency with GDAL).
-	  * @param list Where values are to be added.
-	  *             Note that a 0.0 will be added where (col,row) is not valid.
-	  * @return 0 iff OK.
-	  */
-	int getPixelDoubleValuesInBand(unsigned band_index, vector<double>& list);
-	
-	/**
-	  * Reads in values from all bands (all given rasters) at pixel in (col,row).
-	  * Values are stored in bandValues_buffer.
-	  *
-	  * @param buffer where values are copied.  
-	  *      Assumed to have at least getBandBufferSize() bytes allocated.
-	  * @return buffer
-	  */
-	void* getBandValuesForPixel(int col, int row, void* buffer);
-	
 	/**
 	  * Sets the output to write progress info.
 	  */
@@ -498,12 +345,9 @@ public:
 	}
 	
 	/**
-	  * Executes the traversal.
-	  * This traverser should not be modified while
-	  * the traversal is performed. Otherwise unexpected
-	  * behaviour may occur.
+	  * Executes the rasterization.
 	  */
-	void traverse(void);
+	void rasterize(void);
 
 	/**
 	  * Returns the number of visited pixels
@@ -543,29 +387,17 @@ public:
 	void reportSummary(void);
 	
 	
-	/**
-	 * By default, traverse() starts by calling ResetReading on the layer
-	 * (_resetReading == true).
-	 * However, this is in general not appropriate because it precludes the
-	 * traversal from being used as a subtask. 
-	 * For example, in starspan_csv_dup_pixel, all features are processed
-	 * but the extraction from each one is done with a corresponding traversal.
-	 * As a quick fix to allow for this beahaviuor at least for specific commands,
-	 * this global (static) flag can be used to instruct the traversal not
-	 * to call ResetReading on the layer. 
-	 */
-	static bool _resetReading;
 	
 private:
 	
 	
 	struct _Rect {
-		Traverser* tr;
+		LayerRasterizer* tr;
 		
 		double x, y;     // origin in grid coordinates
 		int cols, rows;  // size in pixels
 		
-		_Rect(Traverser* tr, double x, double y, int cols, int rows): 
+		_Rect(LayerRasterizer* tr, double x, double y, int cols, int rows): 
 		tr(tr), x(x), y(y), cols(cols), rows(rows)
 		{}
 		
@@ -645,33 +477,20 @@ private:
 		}
 	};
 	
-	Vector* vect;
-	int layernum;
-	vector<Raster*> rasts;
-	vector<Observer*> observers;
-	bool notSimpleObserver;
+    OGRLayer* layer;
+	vector<LayerRasterizerObserver*> observers;
 
 	double pixelProportion;
-    
-    VectorSelectionParams vSelParams;
-    
-	long desired_FID;
-	string desired_fieldName;
-	string desired_fieldValue;
-	
-	GlobalInfo globalInfo;
+	RastInfo globalInfo;
 	int width, height;
 	double x0, y0, x1, y1;
 	double pix_x_size, pix_y_size;
 	double pix_abs_area;
 	double pixelProportion_times_pix_abs_area;
 	OGREnvelope raster_env;
-	size_t minimumBandBufferSize;
-	double* bandValues_buffer;
 	LineRasterizer* lineRasterizer;
 	void notifyObservers(void);
-	void getBandValuesForPixel(int col, int row);
-	
+
 	/** (x,y) to (col,row) conversion */
 	inline void toColRow(double x, double y, int *col, int *row) {
 		*col = (int) floor( (x - x0) / pix_x_size );
@@ -701,18 +520,11 @@ private:
 			return -1;
 		}
 		
-		TraversalEvent event(col, row, x, y);
+		RastEvent event(col, row, x, y);
 		summary.num_processed_pixels++;
 		
-		// if at least one observer is not simple...
-		if ( notSimpleObserver ) {
-			// get also band values
-			getBandValuesForPixel(col, row);
-			event.bandValues = bandValues_buffer;
-		}
-		
 		// notify observers:
-		for ( vector<Observer*>::const_iterator obs = observers.begin(); obs != observers.end(); obs++ )
+		for ( vector<LayerRasterizerObserver*>::const_iterator obs = observers.begin(); obs != observers.end(); obs++ )
 			(*obs)->addPixel(event);
 		
 		// keep track of processed pixels
@@ -747,16 +559,9 @@ private:
 	bool verbose;
 	ostream* logstream;
 	bool debug_dump_polys;
-	bool debug_no_spatial_filter;
 	bool skip_invalid_polys;
 	
 	WKTWriter wktWriter;
-
-	// buffer parameters
-	BufferParams bufferParams;
-
-	// box parameters
-	BoxParams boxParams;
 };
 
 #endif

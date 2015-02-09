@@ -1,8 +1,8 @@
 //
 // STARSpan project
 // Carlos A. Rueda
-// starspan_csv2 - generate a CSV file from multiple rasters with duplicate pixel handling
-// $Id: starspan_minirasters2.cc,v 1.2 2008-03-03 20:13:33 crueda Exp $
+// minirasters2 - generate minirasters from multiple rasters with duplicate pixel handling
+// $Id: starspan_minirasters2.cc,v 1.5 2008-05-02 09:39:18 crueda Exp $
 //
 
 #include "starspan.h"
@@ -38,10 +38,9 @@ static void extractFunction(ExtractionItem* item) {
 	vector<const char*> raster_filenames;
 	raster_filenames.push_back(item->rasterFilename);
 	
-	// - Call starspan_csv()
+	// - Create and initialize a traverser
 	bool prevResetReading = Traverser::_resetReading;
 	Traverser::_resetReading = false;
-    
     
 	Traverser tr;
     
@@ -56,15 +55,15 @@ static void extractFunction(ExtractionItem* item) {
     
     tr.setVectorSelectionParams(globalOptions.vSelParams);
     
-	if ( globalOptions.FID >= 0 )
-		tr.setDesiredFID(globalOptions.FID);
+    tr.setDesiredFID(globalOptions.FID);
 	tr.setVerbose(globalOptions.verbose);
     tr.setSkipInvalidPolygons(globalOptions.skip_invalid_polys);
     
-
-    Observer* obs = starspan_getMiniRasterObserver(tr, mini_prefix, mini_srs);
+    // - Create and register MiniRasterObserver
+    Observer* obs = starspan_getMiniRasterObserver(mini_prefix, mini_srs);
 	tr.addObserver(obs);
 
+    // - traverse
     tr.traverse();
     
     tr.releaseObservers();

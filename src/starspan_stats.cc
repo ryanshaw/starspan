@@ -2,7 +2,7 @@
 // STARSpan project
 // Carlos A. Rueda
 // starspan_stats - some stats calculation
-// $Id: starspan_stats.cc,v 1.8 2008-03-03 20:13:33 crueda Exp $
+// $Id: starspan_stats.cc,v 1.9 2008-04-11 19:15:12 crueda Exp $
 //
 
 #include "starspan.h"           
@@ -400,13 +400,13 @@ public:
 	/**
 	  * dispatches pending feature if any, and prepares for the next
 	  */
-	void intersectionFound(OGRFeature* feature) {
+	void intersectionFound(IntersectionInfo& intersInfo) {
 		finalizePreviousFeatureIfAny();
 		
 		// keep track of last FID processed:
-		last_FID = feature->GetFID();
+		last_FID = intersInfo.feature->GetFID();
 		
-		last_feature = feature->Clone();
+		last_feature = intersInfo.feature->Clone();
 	}
 	
 	

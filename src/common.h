@@ -1,7 +1,7 @@
 //
 // starspan common declarations
 // Carlos A. Rueda
-// $Id: common.h,v 1.7 2008-03-03 20:13:33 crueda Exp $
+// $Id: common.h,v 1.10 2008-04-23 00:05:22 crueda Exp $
 //
 
 #ifndef starspan_common_h
@@ -10,6 +10,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <cassert>
 
 using namespace std;
 
@@ -34,20 +35,42 @@ struct BufferParams {
 };
 
 
-/** Class for dupplicate pixel modes.  */
+/** Box parameters
+  */
+struct BoxParams {
+	/** were given? */
+	bool given;
+	
+	double width;
+	double height;
+	
+};
+
+
+/** Class for duplicate pixel modes.  */
 struct DupPixelMode {
 	string code;
 	double arg;
 	
 	DupPixelMode(string code, double arg) :
-		code(code), arg(arg) {
+		code(code), arg(arg), withArg(true) {
+	}
+	
+	DupPixelMode(string code) :
+		code(code), withArg(false) {
 	}
 	
 	string toString() {
 		ostringstream ostr;
-		ostr << code << " " << arg;
+		ostr << code;
+        if ( withArg ) {
+            ostr << " " << arg;
+        }
 		return ostr.str();
 	}
+    
+    private:
+        bool withArg;
 };
 
 
@@ -112,12 +135,16 @@ struct GlobalOptions {
 	// buffer parameters
 	BufferParams bufferParams;
 	
+	// box parameters
+	BoxParams boxParams;
+	
 	// miniraster parity
 	string mini_raster_parity;
 	
 	/** separation in pixels between minirasters in strip */
 	int mini_raster_separation;
 	
+    
 	/** separator for CSV files */
 	string delimiter;
 	

@@ -1,6 +1,6 @@
 #########################################################
 # starspan Makefile.am 
-# $Id: Makefile.am,v 1.9 2008-03-03 20:13:33 crueda Exp $
+# $Id: Makefile.am,v 1.15 2008-05-02 09:39:18 crueda Exp $
 #########################################################
 
 bin_PROGRAMS = starspan2
@@ -10,9 +10,12 @@ EXTRA_DIST   = starspan
 
 starspan2_SOURCES =	\
 	src/starspan2.cc \
+	src/starspan_grass.cc \
+	src/starspan_rasterize.cc \
 	src/starspan_dup_pixel.cc \
 	src/starspan_csv2.cc \
 	src/starspan_minirasters2.cc \
+	src/starspan_minirasterstrip2.cc \
 	src/starspan_stats.cc \
 	src/starspan_countbyclass.cc \
 	src/starspan_update_csv.cc \
@@ -37,6 +40,9 @@ starspan2_SOURCES =	\
 	src/vector/Vector_ogr.cc
 
 AM_CPPFLAGS = -g @GEOS_INC@  @GDAL_INC@
+
+AM_LDFLAGS = @GRASS_LIB@
+starspan2_LDADD = @GRASS_LDADD@
 
 INCLUDES = \
 	-I$(srcdir)/src \
