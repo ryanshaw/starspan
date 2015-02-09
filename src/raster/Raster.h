@@ -1,6 +1,6 @@
 /*
 	raster - raster interface
-	$Id: Raster.h,v 1.4 2008-04-22 20:59:47 crueda Exp $
+	$Id: Raster.h,v 1.3 2005-11-15 19:11:52 crueda Exp $
 */
 #ifndef Raster_h
 #define Raster_h
@@ -32,14 +32,7 @@ public:
 	// finishes this module
 	static int end(void);
 	
-	/**
-     * Creates a raster object representing an existing file. 
-	 * Returns null if error 
-     */
-	static Raster* open(const char* filename);
-	
 	// Creates a raster object representing an existing file.
-    // Deprecated: use Raster::open
 	Raster(const char* filename);
 	
 	// Creates a raster object representing a new raster file.
@@ -124,8 +117,6 @@ public:
 	void report(FILE* file);
 	
 private:
-    Raster(GDALDataset* hDataset);
-    
 	GDALDataset* hDataset;
     const char* pszProjection;
     double adfGeoTransform[6];

@@ -2,7 +2,7 @@
 // STARSpan project
 // Carlos A. Rueda
 // starspan_dump - dump geometries (testing routine)
-// $Id: starspan_dump.cc,v 1.3 2008-04-11 19:15:12 crueda Exp $
+// $Id: starspan_dump.cc,v 1.2 2006-11-10 22:53:08 perrygeo Exp $
 //
 
 #include "starspan.h"           
@@ -187,8 +187,8 @@ public:
 	/**
 	  * Inits creation of datasets corresponding to new feature
 	  */
-	void intersectionFound(IntersectionInfo& intersInfo) {
-		dumpFeature(intersInfo.feature, file);
+	void intersectionFound(OGRFeature* feature) {
+		dumpFeature(feature, file);
 	}
 
 	/**

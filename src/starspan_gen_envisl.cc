@@ -2,7 +2,7 @@
 // STARSpan project
 // Carlos A. Rueda
 // starspan_gen_envisl - generates envi output
-// $Id: starspan_gen_envisl.cc,v 1.2 2008-04-11 19:15:12 crueda Exp $
+// $Id: starspan_gen_envisl.cc,v 1.1 2005-02-19 03:01:57 crueda Exp $
 //
 
 #include "starspan.h"           
@@ -180,8 +180,8 @@ public:
 	/**
 	  * Used here to update currentFeature
 	  */
-	void intersectionFound(IntersectionInfo& intersInfo) {
-		currentFeature = intersInfo.feature;
+	void intersectionFound(OGRFeature* feature) {
+		currentFeature = feature;
 	}
 
 	

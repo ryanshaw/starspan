@@ -3,11 +3,11 @@
 // Line rasterization using a Bresenham interpolator 
 // with subpixel accuracy (Anti-grain geometry, AGG)
 // Carlos A. Rueda
-// $Id: LineRasterizer.cc,v 1.2 2008-04-18 02:12:22 crueda Exp $
+// $Id: LineRasterizer.cc,v 1.1 2005-02-19 21:29:20 crueda Exp $
 //
 
 #include "rasterizers.h"           
-#include "agg/agg_dda_line.h"   // line_bresenham_interpolator
+#include "agg_dda_line.h"   // line_bresenham_interpolator
 
 #include <math.h>
 

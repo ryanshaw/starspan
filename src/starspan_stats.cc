@@ -2,7 +2,7 @@
 // STARSpan project
 // Carlos A. Rueda
 // starspan_stats - some stats calculation
-// $Id: starspan_stats.cc,v 1.11 2008-05-09 02:11:17 crueda Exp $
+// $Id: starspan_stats.cc,v 1.8 2008-03-03 20:13:33 crueda Exp $
 //
 
 #include "starspan.h"           
@@ -193,7 +193,7 @@ public:
 			
 			// RID column, if to be included
 			if ( globalOptions.RID != "none" ) {
-				csvOut.addString(RID_colName);
+				csvOut.addString("RID");
 				//fprintf(file, ",RID");
 			}
 			
@@ -400,13 +400,13 @@ public:
 	/**
 	  * dispatches pending feature if any, and prepares for the next
 	  */
-	void intersectionFound(IntersectionInfo& intersInfo) {
+	void intersectionFound(OGRFeature* feature) {
 		finalizePreviousFeatureIfAny();
 		
 		// keep track of last FID processed:
-		last_FID = intersInfo.feature->GetFID();
+		last_FID = feature->GetFID();
 		
-		last_feature = intersInfo.feature->Clone();
+		last_feature = feature->Clone();
 	}
 	
 	
@@ -453,24 +453,23 @@ double** starspan_getFeatureStats(
 	tr.addRaster(rast);
 	tr.setDesiredFID(FID);
 
-    double** result_stats = 0;
-    
 	FILE* file = 0;
 	vector<const char*> select_fields;
 	StatsObserver* statsObs = new StatsObserver(tr, file, select_stats, &select_fields);
-	if ( statsObs ) {
-        // I want to keep the resulting stats arrays for the client
-        statsObs->releaseStats = false;
-        
-        tr.addObserver(statsObs);
-        tr.traverse();
-        
-        // take results:
-        double** result_stats = statsObs->result_stats;
-        
-        tr.releaseObservers();
-	}
-    
+	if ( !statsObs )
+		return 0;
+	
+	// I want to keep the resulting stats arrays for the client
+	statsObs->releaseStats = false;
+	
+	tr.addObserver(statsObs);
+	tr.traverse();
+	
+	// take results:
+	double** result_stats = statsObs->result_stats;
+	
+	tr.releaseObservers();
+	
 	return result_stats;
 }
 
@@ -483,6 +482,10 @@ double** starspan_getFeatureStatsByField(
 	long *FID
 ) {
 	Traverser tr;
+	if ( globalOptions.pix_prop >= 0.0 )
+		tr.setPixelProportion(globalOptions.pix_prop);
+    
+    tr.setVectorSelectionParams(globalOptions.vSelParams);
     
 	tr.setVector(vect);
 	tr.addRaster(rast);
@@ -564,8 +567,14 @@ int starspan_stats(
 	tr.setVector(vect);
 	tr.setLayerNum(layernum);
 
+	if ( globalOptions.pix_prop >= 0.0 )
+		tr.setPixelProportion(globalOptions.pix_prop);
+    
+    tr.setVectorSelectionParams(globalOptions.vSelParams);
+    
 	if ( globalOptions.FID >= 0 )
 		tr.setDesiredFID(globalOptions.FID);
+	tr.setVerbose(globalOptions.verbose);
 	if ( globalOptions.progress ) {
 		tr.setProgress(globalOptions.progress_perc, cout);
 		cout << "Number of features: ";
@@ -576,6 +585,8 @@ int starspan_stats(
 			cout << "(not known in advance)";
 		cout<< endl;
 	}
+	tr.setSkipInvalidPolygons(globalOptions.skip_invalid_polys);
+	
 
 	StatsObserver obs(tr, file, select_stats, select_fields);
 	obs.closeFile = false;

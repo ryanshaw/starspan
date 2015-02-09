@@ -6,7 +6,6 @@
 
 #include "Stats.h"
 
-#include <algorithm>
 #include <string>
 #include <map>
 #include <cstdio>

@@ -1,7 +1,7 @@
 //
 // Traverse
 // Carlos A. Rueda
-// $Id: traverser.h,v 1.29 2008-05-09 00:50:36 crueda Exp $
+// $Id: traverser.h,v 1.21 2008-03-04 02:41:53 crueda Exp $
 //
 
 #ifndef traverser_h
@@ -127,38 +127,6 @@ struct GlobalInfo {
 	                           
 	/** A rectangle covering the raster extension. */
 	OGRPolygon rasterPoly;
-    
-    /** Dimensions of the raster */
-    int width, height;
-    
-    /** The layer being traversed */
-    OGRLayer* layer;
-};
-
-
-// forward declaration
-class Traverser;
-
-
-/**
-  * Info passed in observer#intersection{Found,End} methods.
-  */
-struct IntersectionInfo {
-    /** the traverser sending the notification */
-    Traverser* trv;
-    
-    /** Intersecting feature */
-    OGRFeature* feature;
-    
-    /** The actual geometry used in intersection with raster envelope.
-     * Unless some pre-processing operation has been applied (eg., buffer, box),
-     * this will be equal to the original feature's geometry, ie., 
-     * feature->GetGeometryRef().
-     */
-    OGRGeometry* geometryToIntersect;
-    
-    /** Initial intersection */
-    OGRGeometry* intersection_geometry;
 };
 
 
@@ -220,16 +188,14 @@ public:
 	virtual void init(GlobalInfo& info) {}
 	
 	/**
-	  * A new intersecting feature has been found.
-      * @param intersInfo
+	  * A new intersecting feature has been found 
 	  */
-	virtual void intersectionFound(IntersectionInfo& intersInfo) {}
+	virtual void intersectionFound(OGRFeature* feature) {}
 	
 	/**
 	  * Processing of intersecting feature has finished.  
-      * @param intersInfo
 	  */
-	virtual void intersectionEnd(IntersectionInfo& intersInfo) {}
+	virtual void intersectionEnd(OGRFeature* feature) {}
 	
 	/**
 	  * A new pixel location has been computed.
@@ -270,7 +236,7 @@ inline Polygon* create_pix_poly(double x0, double y0, double x1, double y1) {
 
 /**
   * A Traverser intersects every geometry feature in a vector datasource
-  * with a raster dataset. Observers should be registered for the
+  * with a raster dataset. Observer should be registered for the
   * actual work to be done.
   *
   * synopsis of usage:
@@ -284,6 +250,11 @@ inline Polygon* create_pix_poly(double x0, double y0, double x1, double y1) {
   *		tr.addRaster(r1);
   *		tr.addRaster(r2);
   *		...
+  *		
+  *		// optionally
+  *		tr.setPixelProportion(pp);
+  *		tr.setDesiredFID(fid);
+  *
   *		// add observers:  
   *		tr.addObserver(observer1);
   *		tr.addObserver(observer2);
@@ -350,6 +321,23 @@ public:
 	void removeRasters(void);
 	
 	/**
+	  * Sets the proportion of intersected area required for a pixel to be included.
+	  * This parameter is only used during processing of polygons.
+	  * By default, a point-in-poly criterion is used: if the polygon contains 
+	  * the upper left corner of the pixel, then the pixel is included.
+	  *
+	  * @param pixprop A value assumed to be in [0.0, 1.0].
+	  */
+	void setPixelProportion(double pixprop);
+
+	/**
+	  * Sets the vector selection parameters. 
+	  *
+	  * @param vsp the parameters.
+	  */
+    void setVectorSelectionParams(VectorSelectionParams vsp) { vSelParams = vsp; }
+
+	/**
 	  * Only the given FID will be processed.
 	  *
 	  * @param FID  a FID.
@@ -366,6 +354,15 @@ public:
 	  * @param field_value Value of the field
 	  */
 	void setDesiredFeatureByField(const char* field_name, const char* field_value);
+	
+	/**
+	  * Sets parameters to apply the buffer operation on geometry features
+	  * before computing the intersection.
+	  * By default, no buffer operation will be applied.
+	  *
+	  * @param bufferParams      See description in starspan.h
+	  */
+	void setBufferParameters(BufferParams bufferParams);
 	
 	
 	/**
@@ -436,12 +433,26 @@ public:
 	}
 	
 	/**
+	  * Sets verbose flag
+	  */
+	void setVerbose(bool v) { 
+		verbose = v;
+	}
+	
+	/**
 	  * Sets log output
 	  */
 	void setLog(ostream& log) { 
 		logstream = &log;
 	}
 	
+	/**
+	  * Sets if invalid polygons should be skipped.
+	  * By default all polygons are processed.
+	  */
+	void setSkipInvalidPolygons(bool b) { 
+		skip_invalid_polys = b;
+	}
 	
 	/**
 	  * Executes the traversal.
@@ -597,6 +608,10 @@ private:
 	vector<Observer*> observers;
 	bool notSimpleObserver;
 
+	double pixelProportion;
+    
+    VectorSelectionParams vSelParams;
+    
 	long desired_FID;
 	string desired_fieldName;
 	string desired_fieldValue;
@@ -686,11 +701,16 @@ private:
                                     
 	ostream* progress_out;
 	double progress_perc;
+	bool verbose;
 	ostream* logstream;
 	bool debug_dump_polys;
 	bool debug_no_spatial_filter;
+	bool skip_invalid_polys;
 	
 	WKTWriter wktWriter;
+
+	// buffer parameters
+	BufferParams bufferParams;
 };
 
 #endif

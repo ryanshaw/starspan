@@ -2,27 +2,22 @@
 #
 # Stript to make StarSpan public source distribution.
 # See configure.in
-# $Id: mksrcdist.sh.in,v 1.4 2008-04-07 20:41:46 crueda Exp $
+# $Id: mksrcdist.sh.in,v 1.3 2005-08-18 09:39:57 crueda Exp $
 #
 if [ -z $1 ]; then
-    echo "USAGE:  mksrcdist.sh { <VERSION> | now }"
+	echo "USAGE:  mksrcdist.sh <VERSION>"
 	exit 1
 fi
 VERSION=$1
 
-if [ "$VERSION" = "now" ]; then
-    VERSION=`date +"%Y%m%d_%H%M%S"`
-    tag=r-$VERSION
-    dotag=y
-else
-    if [ "$VERSION" != "@STARSPAN_VERSION@" ]; then
-	    echo "VERSION mismatch.  Check configure.in"
-        exit 2
-    fi
-    tag=`echo release-$VERSION | tr -t . _`
-    echo "Make tag [y/-]?:  cvs -q tag $tag"
-    read dotag
+if [ "$VERSION" != "@STARSPAN_VERSION@" ]; then
+	echo "VERSION mismatch.  Check configure.in"
+	exit 2
 fi
+tag=`echo release-$VERSION | tr -t . _`
+
+echo "Make tag [y/-]?:  cvs -q tag $tag"
+read dotag
 
 # $cvsroot: used to export the source from cvs
 # (should be anonymously...

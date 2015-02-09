@@ -2,7 +2,7 @@
 // STARSpan project
 // Carlos A. Rueda
 // starspan_csv - generate a CSV file from multiple rasters
-// $Id: starspan_csv.cc,v 1.13 2008-05-09 02:11:17 crueda Exp $
+// $Id: starspan_csv.cc,v 1.10 2008-03-03 20:13:33 crueda Exp $
 //
 
 #include "starspan.h"
@@ -24,7 +24,7 @@ public:
 	OGRFeature* currentFeature;
 	vector<const char*>* select_fields;
 	const char* raster_filename;
-	string RID_value;  //  will be used only if globalOptions.RID != "none".
+	string RID;  //  will be used only if globalOptions.RID != "none".
 	bool write_header;
 	FILE* file;
 	int layernum;
@@ -84,7 +84,7 @@ public:
 			
 			// RID column, if to be included
 			if ( globalOptions.RID != "none" ) {
-				csvOut.addString(RID_colName);
+				csvOut.addString("RID");
 			}
 			
 			// Create (col,row) fields, if so indicated
@@ -107,9 +107,9 @@ public:
 		
 		currentFeature = NULL;
 		if ( globalOptions.RID != "none" ) {
-			RID_value = raster_filename;
+			RID = raster_filename;
 			if ( globalOptions.RID == "file" ) {
-				starspan_simplify_filename(RID_value);
+				starspan_simplify_filename(RID);
 			}
 		}
 	}
@@ -118,8 +118,8 @@ public:
 	/**
 	  * Used here to update currentFeature
 	  */
-	void intersectionFound(IntersectionInfo& intersInfo) {
-		currentFeature = intersInfo.feature;
+	void intersectionFound(OGRFeature* feature) {
+		currentFeature = feature;
 	}
 	
 	
@@ -163,7 +163,7 @@ public:
 
 		// add RID field
 		if ( globalOptions.RID != "none" ) {
-			csvOut.addString(RID_value);
+			csvOut.addString(RID);
 		}
 		
 		
@@ -257,7 +257,14 @@ int starspan_csv(
 
 	tr.setVector(vect);
 	tr.setLayerNum(layernum);
+	if ( globalOptions.pix_prop >= 0.0 )
+		tr.setPixelProportion(globalOptions.pix_prop);
     
+    tr.setVectorSelectionParams(globalOptions.vSelParams);
+    
+	if ( globalOptions.FID >= 0 )
+		tr.setDesiredFID(globalOptions.FID);
+	tr.setVerbose(globalOptions.verbose);
 	if ( globalOptions.progress ) {
 		tr.setProgress(globalOptions.progress_perc, cout);
 		cout << "Number of features: ";
@@ -268,6 +275,7 @@ int starspan_csv(
 			cout << "(not known in advance)";
 		cout<< endl;
 	}
+	tr.setSkipInvalidPolygons(globalOptions.skip_invalid_polys);
 	
 	for ( unsigned i = 0; i < raster_filenames.size(); i++ ) {
 		fprintf(stdout, "starspan_csv: %3u: Extracting from %s\n", i+1, raster_filenames[i]);

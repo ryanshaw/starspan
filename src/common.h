@@ -1,7 +1,7 @@
 //
 // starspan common declarations
 // Carlos A. Rueda
-// $Id: common.h,v 1.15 2008-05-15 20:44:28 crueda Exp $
+// $Id: common.h,v 1.7 2008-03-03 20:13:33 crueda Exp $
 //
 
 #ifndef starspan_common_h
@@ -10,19 +10,11 @@
 #include <string>
 #include <sstream>
 #include <vector>
-#include <cassert>
 
 using namespace std;
 
 
-// TODO: parameterize this name
-#define RID_colName "RID" 
-
-
-/** buffer parameters.
- * These parameters are applied on geometry features
- * before computing the intersection.
- * By default, no buffer operation will be applied.
+/** buffer parameters
   */
 struct BufferParams {
 	/** were given? */
@@ -34,7 +26,7 @@ struct BufferParams {
 	  */
 	string distance;
 
-	/** Number of segments to use to approximate a quadrant of a circle.
+	/** Number of segments to use to approximate a* quadrant of a circle.
 	  * If it starts with '@' then it indicates the name of the attribute 
 	  * from which this value will be obtained.
 	  */
@@ -42,107 +34,20 @@ struct BufferParams {
 };
 
 
-
-/**
- * Parses a string for a size.
- * @param sizeStr the input string which may contain a suffix ("px") 
- * @param pix_size pixel size in case suffix "px" is given
- * @param size where the parsed size will be stored
- * @return 0 iff OK
- */ 
-int parseSize(const char* sizeStr, double pix_size, double *size);
-
-
-/** 
- * Box parameters.
- * Sets a fixed box centered according to bounding box
- * of the geometry features before computing the intersection.
- * By default, no box is used.
- */
-struct BoxParams {
-	/** were given? */
-	bool given;
-	
-    /** given width and height */
-	string width;
-	string height;
-    
-    BoxParams() : 
-        given(false), width(""), height(""), 
-        parsed(false), pwidth(0), pheight(0) 
-    {}
-    
-	
-    /**
-     * Parses the given width and height.
-     * getParsedDims() can be called after this.
-     * @param pix_x_size pixel size in x in case suffix "px" is given
-     * @param pix_y_size pixel size in y in case suffix "px" is given
-     * @return 0 iff OK
-     */ 
-    int parse(double pix_x_size, double pix_y_size) {
-        int res = 0;
-        if ( (res = parseSize(width.c_str(),  pix_x_size, &pwidth))
-        ||   (res = parseSize(height.c_str(), pix_y_size, &pheight)) ) {
-            return res;
-        }
-        parsed = true;
-        return res;
-    }
-
-    /** Get the parsed dimensiones.
-     * parse() must be called before this. 
-     */
-    void getParsedDims(double *pw, double *ph) {
-        assert( parsed ) ;
-        *pw = pwidth;
-        *ph = pheight;
-    }
-    
-private:
-    bool parsed;
-    double pwidth;
-    double pheight;
-    
-};
-
-
-/** Class for duplicate pixel modes.  */
+/** Class for dupplicate pixel modes.  */
 struct DupPixelMode {
 	string code;
-	string param1;
 	double arg;
 	
 	DupPixelMode(string code, double arg) :
-		code(code), param1(""), arg(arg), withArg(true) {
-	}
-	
-	DupPixelMode(string code) :
-		code(code), param1(""), withArg(false) {
-	}
-	
-	DupPixelMode(string code, string param1) :
-		code(code), param1(param1), withArg(false) {
-	}
-	
-	DupPixelMode(string code, string param1, int arg) :
-		code(code), param1(param1), arg(arg), withArg(true) {
+		code(code), arg(arg) {
 	}
 	
 	string toString() {
 		ostringstream ostr;
-		ostr << code;
-        if ( param1.size() > 0 ) {
-            ostr << " " << param1;
-        }
-        if ( withArg ) {
-            ostr << " " << arg;
-        }
+		ostr << code << " " << arg;
 		return ostr.str();
 	}
-    
-    private:
-        bool withArg;
 };
 
 
@@ -165,26 +70,18 @@ struct VectorSelectionParams {
 
 
 /** Options that might be used by different services.
+  * This comes in handy while the tool gets more stabilized.
   */
 struct GlobalOptions {
 	bool use_pixpolys;
-    
-    /** should invalid polygons be skipped?
-	 * By default all polygons are processed. 
-     */
 	bool skip_invalid_polys;
 
-	/**
-	 * The proportion of intersected area required for a pixel to be included.
-	 * This parameter is only used during processing of polygons.
-     * Value assumed to be in [0.0, 1.0].
-     */
 	double pix_prop;
 	
-	/** vector selection parameters */
+	// vector selection parameters
 	VectorSelectionParams vSelParams;
 	
-	/** If non-negative, it will be the desired FID to be extracted */
+	/** desired FID */
 	long FID;
 	
 	bool verbose;
@@ -212,19 +109,15 @@ struct GlobalOptions {
 	/** value used as nodata */
 	double nodata;  
 	
-	/** buffer parameters */
+	// buffer parameters
 	BufferParams bufferParams;
 	
-	/** box parameters */
-	BoxParams boxParams;
-	
-	/** miniraster parity */
+	// miniraster parity
 	string mini_raster_parity;
 	
 	/** separation in pixels between minirasters in strip */
 	int mini_raster_separation;
 	
-    
 	/** separator for CSV files */
 	string delimiter;
 	

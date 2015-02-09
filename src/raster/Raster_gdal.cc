@@ -1,6 +1,6 @@
 /*
 	Raster - raster interface implemented on GDAL
-	$Id: Raster_gdal.cc,v 1.5 2008-04-22 20:59:47 crueda Exp $
+	$Id: Raster_gdal.cc,v 1.4 2005-11-15 19:11:52 crueda Exp $
 	See Raster.h for public doc.
 */
 
@@ -62,26 +62,6 @@ Raster::Raster(const char* filename, int width, int height, int bands) {
 }
 
 	
-Raster* Raster::open(const char* rastfilename) {
-	GDALDataset* hDataset = (GDALDataset*) GDALOpen(rastfilename, GA_ReadOnly);
-    
-    if( hDataset == NULL ) {
-        fprintf(stderr, "Raster::open: Unable to open: `%s'\n", rastfilename);
-        return 0;
-    }
-    
-    return new Raster(hDataset);
-}
-
-Raster::Raster(GDALDataset* hDataset) : hDataset(hDataset) {
-	geoTransfOK = GDALGetGeoTransform(hDataset, adfGeoTransform) == CE_None; 
-    if( geoTransfOK ) {
-        pszProjection = GDALGetProjectionRef(hDataset);
-    }
-	bandValues_buffer = new double[GDALGetRasterCount(hDataset)];
-}
-
-
 Raster::Raster(const char* rastfilename) {
 	hDataset = (GDALDataset*) GDALOpen(rastfilename, GA_ReadOnly);
     

@@ -2,10 +2,10 @@
 #include <cstdlib>
 #include "rasterizers.h"
 
-// $Id: test.cc,v 1.2 2008-04-18 02:12:22 crueda Exp $
+// $Id: test.cc,v 1.1 2005-02-19 21:29:20 crueda Exp $
 //
 //
-//   g++ -I. -Iagg -Wall LineRasterizer.cc test.cc
+//   g++ -Wall -I/usr/local/include/agg2  LineRasterizer.cc  test.cc
 //   ./a.out 0 0 3 3 10.1 5.3 20.6 10.1
 //   pixel origin: (0, 0)  pixel size:  3, 3
 //   From  (10.1, 5.3) -> (20.6, 10.1)

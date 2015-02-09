@@ -2,7 +2,7 @@
 // STARSpan project
 // Carlos A. Rueda
 // starspan_countbyclass - count by class
-// $Id: starspan_countbyclass.cc,v 1.7 2008-04-11 19:15:12 crueda Exp $
+// $Id: starspan_countbyclass.cc,v 1.6 2007-12-15 05:49:58 crueda Exp $
 //
 
 #include "starspan.h"           
@@ -126,11 +126,11 @@ public:
 	/**
 	  * gets the counts and writes news records accordingly.
 	  */
-	void intersectionEnd(IntersectionInfo& intersInfo) {
+	void intersectionEnd(OGRFeature* feature) {
 		if ( !OK )
 			return;
 
-		const long FID = intersInfo.feature->GetFID();
+		const long FID = feature->GetFID();
 		
 		// get values of pixels corresponding to first band:		
 		vector<int> values;

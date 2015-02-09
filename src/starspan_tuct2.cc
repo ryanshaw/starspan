@@ -2,7 +2,7 @@
 // STARSpan project
 // Carlos A. Rueda
 // starspan_tuct2 - second version (based on tuct1) according to new scheme
-// $Id: starspan_tuct2.cc,v 1.5 2008-05-09 02:11:17 crueda Exp $
+// $Id: starspan_tuct2.cc,v 1.4 2005-06-19 01:02:37 crueda Exp $
 //
 
 
@@ -52,7 +52,7 @@ int starspan_tuct_2(
 	//
 	calbase_file<< "FID," <<link_name;
 	if ( globalOptions.RID != "none" )
-		calbase_file<< "," <<RID_colName;
+		calbase_file<< ",RID";
 	calbase_file<< ",BandNumber,FieldBandValue";
 	for ( vector<const char*>::const_iterator stat = select_stats.begin(); stat != select_stats.end(); stat++ ) {
 		calbase_file<< "," << *stat << "_ImageBandValue";

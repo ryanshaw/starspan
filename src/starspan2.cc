@@ -1,8 +1,8 @@
 //
-// StarSpan project
+// STARSpan project
 // Carlos A. Rueda
-// starspan2 - main program 
-// $Id: starspan2.cc,v 1.53 2008-07-26 21:35:46 crueda Exp $
+// starspan2 
+// $Id: starspan2.cc,v 1.33 2008-03-04 02:41:53 crueda Exp $
 //
 
 #include <geos/version.h>
@@ -19,25 +19,6 @@
 
 #include <cstdlib>
 #include <ctime>
-
-
-#define DEFAULT_TABLE_SUFFIX                NULL
-        //"_table.csv"
-
-#define DEFAULT_SUMMARY_SUFFIX              NULL              
-        //"_summary.csv"
-
-#define DEFAULT_CLASS_SUMMARY_SUFFIX        NULL
-       //"_classsummary.csv"
-
-#define DEFAULT_MINIRASTER_SUFFIX           "_mr"
-                                            
-#define DEFAULT_MRST_IMG_SUFFIX             "_mrst.img"
-#define DEFAULT_MRST_SHP_SUFFIX             "_mrst.shp"
-#define DEFAULT_MRST_FID_SUFFIX             "_mrstfid.img"
-#define DEFAULT_MRST_GLT_SUFFIX             "_mrstglt.img"
-                                            
-#define DEFAULT_STAT                         "avg"
 
 
 static bool show_dev_options = false;
@@ -74,29 +55,46 @@ static void usage(const char* msg) {
 		"USAGE:\n"
 		"  starspan <inputs/commands/options>...\n"
 		"\n"
-		"      --vector <filename>                         --raster <filenames> ... \n"
-		"      --layer <layername>                         --mask <filenames> ...   \n"
+		"      --vector <filename>\n"
+		"      --layer <layername>     (optional; defaults to first layer in vector dataset)\n"
+		"      --raster {<filenames>... | @fieldname}\n"
+		"      --mask <filenames>... \n"
+		"      --speclib <filename>\n"
+		"      --update-csv <filename>\n"
+		"      --raster_directory <directory>\n"
+		"      --csv <name>\n"
+		"      --envi <name>\n"
+		"      --envisl <name> \n"
+		"      --stats outfile.csv {avg|mode|stdev|min|max|sum|median|nulls}...\n"
+		"      --count-by-class outfile.csv \n"
+		"      --calbase <link> <filename> [<stats>...]\n"
+		"      --in   \n"
+		"      --mini_rasters <prefix> \n"
+		"      --mini_raster_strip <filename> \n"
+		"      --mini_raster_parity {even | odd | @<field>} \n"
+		"      --separation <num-pixels> \n"
 		"\n"
-		"      --out-prefix <string>                       --out-type <type>\n"
-		"      --table-suffix <string>\n"
-		"      --summary-suffix <string>                   --stats <stat> <stat> ...\n"
-        "      --class-summary-suffix <string> \n"
-		"      --mr-img-suffix <string>                    --mini_raster_parity <parity> \n"
-		"      --mrst-img-suffix <string>                  --mrst-shp-suffix <string>\n"
-		"      --mrst-fid-suffix <string>                  --mrst-glt-suffix <string>\n"
-		"\n"
-		"      --duplicate <mode> <mode> ...               --validate_inputs\n"
-		"      --in                                        --separation <num-pixels> \n"
-		"      --fields <field1> ... <fieldn>              --pixprop <minimum-pixel-proportion>\n"
-		"      --sql <statement>                           --noColRow \n"
-		"      --where <condition>                         --noXY\n"
-		"      --dialect <string>                          --skip_invalid_polys\n"
-		"      --fid <FID>                                 --nodata <value>\n"
-		"      --buffer <distance> [<segments>]            --box <width> [<height>] \n"
-		"      --RID {file | path | none}                  --delimiter <separator>\n"
-		"      --progress [<value>]                        --show-fields \n"
-		"      --report                                    --verbose \n"
-		"      --elapsed_time                              --version\n"
+		"      --duplicate_pixel <mode> ...\n"
+		"             <mode>: distance | direction <angle> | ignore_nodata\n"
+		"             (note: ignore_nodata not implemented yet.)\n"
+		"      --fields <field1> <field2> ... <fieldn>\n"
+		"      --pixprop <minimum-pixel-proportion>\n"
+		"      --noColRow \n"
+		"      --noXY\n"
+		"      --sql <statement>\n"
+		"      --where <condition>\n"
+		"      --dialect <string>\n"
+		"      --fid <FID>\n"
+		"      --skip_invalid_polys \n"
+		"      --nodata <value> \n"
+		"      --buffer <distance> [<quadrantSegments>] \n"
+		"      --RID {file | path | none}\n"
+		"      --delimiter <separator>\n"
+		"      --progress [<value>] \n"
+		"      --show-fields \n"
+		"      --report \n"
+		"      --verbose \n"
+		"      --version\n"
 		);
 	}
 	
@@ -117,25 +115,16 @@ static void usage_string(string& msg) {
 }
 
 
-static bool raster_added_to_traverser = false;
-static void add_rasters_to_traverser(vector<const char*>& raster_filenames, Traverser& traversr) {
-    if (!raster_added_to_traverser) {
-        for ( unsigned i = 0; i < raster_filenames.size(); i++ ) {    
-            traversr.addRaster(new Raster(raster_filenames[i]));
-        }
-        raster_added_to_traverser = true;
-        //cout<< "add_rasters_to_traverser: added " <<traversr.getNumRasters()<< " rasters.\n";
-    }
-}
-
-
 ///////////////////////////////////////////////////////////////
-// main program
+// main test program
 int main(int argc, char ** argv) {
-    
+	if ( argc == 1 ) {
+		usage(NULL);
+	}
+	
 	globalOptions.use_pixpolys = false;
 	globalOptions.skip_invalid_polys = false;
-	globalOptions.pix_prop = 0.5;
+	globalOptions.pix_prop = -1.0;
 	globalOptions.FID = -1;
 	globalOptions.verbose = false;
 	globalOptions.progress = false;
@@ -148,56 +137,25 @@ int main(int argc, char ** argv) {
 	globalOptions.nodata = 0.0;
 	globalOptions.bufferParams.given = false;
 	globalOptions.bufferParams.quadrantSegments = "1";
-	globalOptions.boxParams.given = false;
 	globalOptions.mini_raster_parity = "";
 	globalOptions.mini_raster_separation = 0;
 	globalOptions.delimiter = ",";
-    
-
-	if ( use_grass(&argc, argv) ) {
-		return starspan_grass(argc, argv);
-	}
-	
-	if ( argc == 1 ) {
-		usage(NULL);
-	}
-	
-    
-    const char* rasterize_suffix = NULL;
-    RasterizeParams rasterizeParams;
 	
 
-	bool validateInputs = false;
-    
 	bool report_elapsed_time = false;
 	bool do_report = false;
 	bool show_fields = false;
-    
-    
-    const char*  outprefix = NULL;
-    string outtype;
-    
-    
+	const char*  envi_name = NULL;
+	bool envi_image = true;
 	vector<const char*>* select_fields = NULL;
-    
-    const char*  table_suffix = DEFAULT_TABLE_SUFFIX;
-	string  csv_name;
-    
-	const char*  summary_suffix = DEFAULT_SUMMARY_SUFFIX;
+	const char*  csv_name = NULL;
+	const char*  stats_name = NULL;
 	vector<const char*> select_stats;
-    
-    const char*  class_summary_suffix = DEFAULT_CLASS_SUMMARY_SUFFIX;
-    
-    // ####.img will be appended to this
-    const char*  miniraster_suffix = DEFAULT_MINIRASTER_SUFFIX;
+	const char*  count_by_class_name = NULL;
+	const char*  update_csv_name = NULL;
+	const char*  mini_prefix = NULL;
 	const char*  mini_srs = NULL;
-    
-    
-	const char* mrst_img_suffix = DEFAULT_MRST_IMG_SUFFIX;
-	const char* mrst_shp_suffix = DEFAULT_MRST_SHP_SUFFIX;
-	const char* mrst_fid_suffix = DEFAULT_MRST_FID_SUFFIX;
-	const char* mrst_glt_suffix = DEFAULT_MRST_GLT_SUFFIX;
-    
+	const char* mini_raster_strip_filename = NULL;
 	const char* jtstest_filename = NULL;
 	
 	const char* vector_filename = 0;
@@ -205,15 +163,20 @@ int main(int argc, char ** argv) {
 	int vector_layernum = 0;
 	vector<const char*> raster_filenames;
 	
+	const char* speclib_filename = 0;
+	const char* callink_name = 0;
+	const char* calbase_filename = 0;
+	
+	const char* raster_field_name = 0;
+	const char* raster_directory = 0;
     
 	vector<const char*> mask_filenames;
     vector<const char*> *masks = 0;
+	const char* mask_directory = 0;
 
 	const char* dump_geometries_filename = NULL;
 	
-    
-    
-    
+	
 	// ---------------------------------------------------------------------
 	// collect arguments
 	//
@@ -242,13 +205,23 @@ int main(int argc, char ** argv) {
 			while ( ++i < argc && argv[i][0] != '-' ) {
 				const char* raster_filename = argv[i];
 				raster_filenames.push_back(raster_filename);
+				// check for field indication:
+				if ( raster_filename[0] == '@' )
+					raster_field_name = raster_filename + 1;
+				
+				if ( raster_field_name && raster_filenames.size() > 1 ) 
+					usage("--raster: only one element when indicating a @field");
 			}
 			if ( raster_filenames.size() == 0 )
 				usage("--raster: missing argument(s)");
 			if ( i < argc && argv[i][0] == '-' ) 
 				--i;
 		}
-        
+		else if ( 0==strcmp("--raster_directory", argv[i]) ) {
+			if ( ++i == argc || argv[i][0] == '-' )
+				usage("--raster_directory: missing argument");
+			raster_directory = argv[i];
+		}
 		else if ( 0==strcmp("--mask", argv[i]) ) {
 			while ( ++i < argc && argv[i][0] != '-' ) {
 				const char* mask_filename = argv[i];
@@ -265,69 +238,39 @@ int main(int argc, char ** argv) {
 				--i;
             }
 		}
-        
-        
-        else if ( 0==strcmp("--validate_inputs", argv[i]) ) {
-            validateInputs = true;
-        }
-        
-        
-		else if ( 0==strcmp("--duplicate", argv[i]) ) {
+		else if ( 0==strcmp("--mask_directory", argv[i]) ) {
+			if ( ++i == argc || argv[i][0] == '-' ) {
+				usage("--raster_mask_directory: missing argument");
+            }
+			mask_directory = argv[i];
+		}
+		else if ( 0==strcmp("--duplicate_pixel", argv[i]) ) {
 			while ( ++i < argc && argv[i][0] != '-' ) {
 				string dup_code = argv[i];
+				double dup_arg = 0;
 				if ( dup_code == "direction" ) {
 					// need angle argument:
-                    double dup_arg = 0;
 					if ( ++i < argc && argv[i][0] != '-' ) {
 						dup_arg = atof(argv[i]);
 					}
 					else {
 						usage("direction: missing angle parameter");
 					}
-                    globalOptions.dupPixelModes.push_back(DupPixelMode(dup_code, dup_arg));
 				}
 				else if ( dup_code == "distance" ) {
-                    globalOptions.dupPixelModes.push_back(DupPixelMode(dup_code));
+					// OK.
 				}
 				else if ( dup_code == "ignore_nodata" ) {
-                    string band_param;
-					if ( ++i < argc && argv[i][0] != '-' ) {
-						band_param = argv[i];
-                        if ( band_param == "all_bands"
-                        ||   band_param == "any_band"
-                        ||   band_param == "band" ) {
-                            // OK
-                            if ( band_param == "band" ) {
-                                // need band argument:
-                                int band = 0;
-                                if ( ++i < argc && argv[i][0] != '-' ) {
-                                    band = atoi(argv[i]);
-                                    globalOptions.dupPixelModes.push_back(DupPixelMode(dup_code, band_param, band));
-                                }
-                                else {
-                                    usage("--duplicate: ignore_nodata band: missing band argument");
-                                }
-                            }
-                            else {
-                                globalOptions.dupPixelModes.push_back(DupPixelMode(dup_code, band_param));
-                            }
-                        }
-                        else {
-                            string msg = string("--duplicate: ignore_nodata: invalid parameter: ") +band_param;
-                            usage_string(msg);
-                        }
-					}
-					else {
-						usage("--duplicate: ignore_nodata: missing parameter");
-					}
+					// OK.
 				}
 				else {
-					string msg = string("--duplicate: unrecognized mode: ") +dup_code;
+					string msg = string("--duplicate_pixel: unrecognized mode: ") +dup_code;
 					usage_string(msg);
 				}
+				globalOptions.dupPixelModes.push_back(DupPixelMode(dup_code, dup_arg));
 			}
 			if ( globalOptions.dupPixelModes.size() == 0 ) {
-				usage("--duplicate: specify at least one mode");
+				usage("--duplicate_pixel: specify at least one mode");
 			}
 			
 			if ( i < argc && argv[i][0] == '-' ) { 
@@ -335,87 +278,84 @@ int main(int argc, char ** argv) {
 			}
 		}
 		
-		
-		else if ( 0==strcmp("--out-prefix", argv[i]) ) {
+		else if ( 0==strcmp("--speclib", argv[i]) ) {
 			if ( ++i == argc || argv[i][0] == '-' )
-				usage("--out-prefix: ?");
-			outprefix = argv[i];
-        }
-        
-		else if ( 0==strcmp("--out-type", argv[i]) ) {
-			if ( ++i == argc || argv[i][0] == '-' )
-				usage("--out-type: ?");
-			outtype = argv[i];
-        }
-        
-        
-		else if ( 0==strcmp("--table-suffix", argv[i]) ) {
-			if ( ++i == argc || argv[i][0] == '-' )
-				usage("--table-suffix: ?");
-            table_suffix = argv[i];
+				usage("--speclib: which CSV file?");
+			if ( speclib_filename )
+				usage("--speclib specified twice");
+			speclib_filename = argv[i];
 		}
 		
-		else if ( 0==strcmp("--summary-suffix", argv[i]) ) {
+		else if ( 0==strcmp("--update-csv", argv[i]) ) {
 			if ( ++i == argc || argv[i][0] == '-' )
-				usage("--summary-suffix: ?");
-			summary_suffix = argv[i];
+				usage("--update-csv: which CSV file?");
+			if ( update_csv_name )
+				usage("--update-csv specified twice");
+			update_csv_name = argv[i];
 		}
-		else if ( 0==strcmp("--stats", argv[i]) ) {
+		
+		//
+		// COMMANDS
+		//
+		else if ( 0==strcmp("--calbase", argv[i]) ) {
+			if ( ++i == argc || argv[i][0] == '-' )
+				usage("--calbase: which field to use as link?");
+			callink_name = argv[i];
+			if ( ++i == argc || argv[i][0] == '-' )
+				usage("--calbase: which output file name?");
+			calbase_filename = argv[i];
 			while ( ++i < argc && argv[i][0] != '-' ) {
 				select_stats.push_back(argv[i]);
 			}
 			if ( select_stats.size() == 0 )
-				usage("--stats: ?");
+				select_stats.push_back("avg");
+			if ( i < argc && argv[i][0] == '-' ) 
+				--i;
+		}
+		
+		else if ( 0==strcmp("--csv", argv[i]) ) {
+			if ( ++i == argc || argv[i][0] == '-' )
+				usage("--csv: which name?");
+			csv_name = argv[i];
+		}
+		
+		else if ( 0==strcmp("--stats", argv[i]) ) {
+			if ( ++i == argc || argv[i][0] == '-' )
+				usage("--stats: which output name?");
+			stats_name = argv[i];
+			while ( ++i < argc && argv[i][0] != '-' ) {
+				select_stats.push_back(argv[i]);
+			}
+			if ( select_stats.size() == 0 )
+				usage("--stats: which statistics?");
 			if ( i < argc && argv[i][0] == '-' ) 
 				--i;
 		}
 
-		else if ( 0==strcmp("--class-summary-suffix", argv[i]) ) {
+		else if ( 0==strcmp("--count-by-class", argv[i]) ) {
 			if ( ++i == argc || argv[i][0] == '-' )
-				usage("--class-summary-suffix: ?");
-			class_summary_suffix = argv[i];
+				usage("--count-by-class: which output name?");
+			count_by_class_name = argv[i];
 		}
 
-        
-        // minirasters
-		else if ( 0==strcmp("--mr-img-suffix", argv[i]) ) {
+		else if ( 0==strcmp("--mini_raster_strip", argv[i]) ) {
 			if ( ++i == argc || argv[i][0] == '-' )
-				usage("--mr-img-suffix: ?");
-            miniraster_suffix = argv[i];
+				usage("--mini_raster_strip: filename?");
+			mini_raster_strip_filename = argv[i];
 		}
 		
-        
-        // miniraster strip
-		else if ( 0==strcmp("--mrst-img-suffix", argv[i]) ) {
+		else if ( 0==strcmp("--mini_rasters", argv[i]) ) {
 			if ( ++i == argc || argv[i][0] == '-' )
-				usage("--mrst-img-suffix: ?");
-            mrst_img_suffix = argv[i];
-		}
-		else if ( 0==strcmp("--mrst-shp-suffix", argv[i]) ) {
-			if ( ++i == argc || argv[i][0] == '-' )
-				usage("--mrst-shp-suffix: ?");
-            mrst_shp_suffix = argv[i];
-		}
-		else if ( 0==strcmp("--mrst-fid-suffix", argv[i]) ) {
-			if ( ++i == argc || argv[i][0] == '-' )
-				usage("--mrst-fid-suffix: ?");
-            mrst_fid_suffix = argv[i];
-		}
-		else if ( 0==strcmp("--mrst-glt-suffix", argv[i]) ) {
-			if ( ++i == argc || argv[i][0] == '-' )
-				usage("--mrst-shp-suffix: ?");
-            mrst_glt_suffix = argv[i];
+				usage("--mini_rasters: which prefix?");
+			mini_prefix = argv[i];
 		}
 		
-		
-		else if ( 0==strcmp("--rasterize-suffix", argv[i]) ) {
-			if ( ++i == argc || argv[i][0] == '-' ) {
-				usage("--rasterize: suffix?");
-            }
-            rasterize_suffix = argv[i];
-            // TODO: accept other parameters
+		else if ( 0==strcmp("--envi", argv[i]) || 0==strcmp("--envisl", argv[i]) ) {
+			envi_image = 0==strcmp("--envi", argv[i]);
+			if ( ++i == argc || argv[i][0] == '-' )
+				usage("--envi, --envisl: which base name?");
+			envi_name = argv[i];
 		}
-        
 		
 		else if ( 0==strcmp("--dump_geometries", argv[i]) ) {
 			if ( ++i == argc || argv[i][0] == '-' )
@@ -439,14 +379,11 @@ int main(int argc, char ** argv) {
 		// OPTIONS
 		//                                                        
 		else if ( 0==strcmp("--pixprop", argv[i]) ) {
-			if ( ++i == argc || argv[i][0] == '-' ) {
+			if ( ++i == argc || argv[i][0] == '-' )
 				usage("--pixprop: pixel proportion?");
-            }
-			double pix_prop = atof(argv[i]);
-			if ( pix_prop < 0.0 || pix_prop > 1.0 ) {
+			globalOptions.pix_prop = atof(argv[i]);
+			if ( globalOptions.pix_prop < 0.0 || globalOptions.pix_prop > 1.0 )
 				usage("invalid pixel proportion");
-            }
-            globalOptions.pix_prop = pix_prop;
 		}
 		
 		else if ( 0==strcmp("--nodata", argv[i]) ) {
@@ -462,20 +399,6 @@ int main(int argc, char ** argv) {
 			if ( i+1 < argc && strncmp(argv[i+1], "--", 2) != 0 )
 				globalOptions.bufferParams.quadrantSegments = argv[++i];
 			globalOptions.bufferParams.given = true;				
-		}
-		
-		else if ( 0==strcmp("--box", argv[i]) ) {
-			if ( ++i == argc || strncmp(argv[i], "--", 2) == 0 ) {
-				usage("--box: missing argument");
-            }
-            string bw = argv[i];
-            string bh = bw;
-            if ( 1 + i < argc && strncmp(argv[1 + i], "--", 2) != 0 ) {
-                bh = argv[++i];
-            }
-            globalOptions.boxParams.width  = bw;
-            globalOptions.boxParams.height = bh;
-            globalOptions.boxParams.given = true;
 		}
 		
 		else if ( 0==strcmp("--mini_raster_parity", argv[i]) ) {
@@ -538,7 +461,7 @@ int main(int argc, char ** argv) {
 			if ( !select_fields ) {
 				select_fields = new vector<const char*>();
 			}
-			// the special name "none" will indicate no fields at all:
+			// the special name "none" will indicate not fields at all:
 			bool none = false;
 			while ( ++i < argc && argv[i][0] != '-' ) {
 				const char* str = argv[i];
@@ -588,10 +511,6 @@ int main(int argc, char ** argv) {
 			report_elapsed_time = true;
 		}
 		
-		else if ( 0==strcmp("--elapsed_time", argv[i]) ) {
-			report_elapsed_time = true;
-		}
-		
 		else if ( 0==strcmp("--srs", argv[i]) ) {
 			if ( ++i == argc || argv[i][0] == '-' )
 				usage("--srs: which srs?");
@@ -609,38 +528,13 @@ int main(int argc, char ** argv) {
 			exit(0);
 		}
 		else {
-            string msg = string("invalid argument: ") +argv[i];
-            usage_string(msg);
+			usage("invalid arguments");
 		}
 	}
 	// ---------------------------------------------------------------------
+	
+	////CPLPushErrorHandler(starspan_myErrorHandler);
 
-
-    
-    if ( globalOptions.bufferParams.given && globalOptions.boxParams.given ) {
-        usage("Only one of --buffer/--box may be given");
-    }
-    
-    if ( globalOptions.bufferParams.given ) {
-        if ( globalOptions.verbose ) {
-            cout<< "Using buffer parameters:"
-                << "\n\tdistance = " <<globalOptions.bufferParams.distance
-                << "\n\tquadrantSegments = " <<globalOptions.bufferParams.quadrantSegments
-                <<endl;
-            ;
-        }
-    }
-        
-    if ( globalOptions.boxParams.given ) {
-        if ( globalOptions.verbose ) {
-            cout<< "Given box parameters:"
-                << " width = " <<globalOptions.boxParams.width
-                << ", height = " <<globalOptions.boxParams.height
-                <<endl;
-            ;
-        }
-    }
-    
 	time_t time_start = time(NULL);
 	
 	// module initialization
@@ -651,10 +545,6 @@ int main(int argc, char ** argv) {
 	
 	Vector* vect = 0;
 	
-    // the traverser object	
-    Traverser traversr;
-
-    
 	// preliminary checks:
 	
 	if ( vector_filename ) {
@@ -684,11 +574,23 @@ int main(int argc, char ** argv) {
 		else {
 		       vector_layernum = 0; 
 		}
-        
-        traversr.setVector(vect);
-        traversr.setLayerNum(vector_layernum);
 	}
 
+	if ( raster_field_name && !csv_name ) {
+		usage("--csv command expected (as this is the only command\n"
+			"that currently processes the --raster @fieldname specification)"
+		);
+	}
+	if ( raster_directory ) {
+        if ( raster_filenames.size() > 1 ) {
+            // TODO
+            //expandFileNames(raster_directory, raster_filenames);
+        }
+        else if ( !raster_field_name  ) {
+            usage("--raster_directory: --raster required");
+        }
+	}
+	
 	
     if ( mask_filenames.size() > 0 ) {
         size_t noPairs = min(raster_filenames.size(), mask_filenames.size());
@@ -704,29 +606,140 @@ int main(int argc, char ** argv) {
             }
         }
     }
-    
-    if ( validateInputs 
-    && starspan_validate_input_elements(vect, vector_layernum, raster_filenames, masks) ) {
-        usage("invalid inputs; check error messages");
-    }        
-    
 
 	if ( globalOptions.dupPixelModes.size() > 0 ) {
 		if ( globalOptions.verbose ) {
-			cout<< "--duplicate modes given:" << endl;
+			cout<< "--duplicate_pixel modes given:" << endl;
 			for (int k = 0, count = globalOptions.dupPixelModes.size(); k < count; k++ ) {
 				cout<< "\t" <<globalOptions.dupPixelModes[k].toString() << endl;
 			}
 		}
+		
+		if ( !csv_name && !mini_prefix) {
+			usage("--duplicate_pixel: No --csv or --mini_rasters command!");
+		}
 	}
 	
-    
-
-    //    
-    // dispatch simpler commands:
 	//
+	// dispatch commands with special processing:
+	//
+	if ( csv_name ) { 
+		if ( !vect ) {
+			usage("--csv expects a vector input (use --vector)");
+		}
+		if ( raster_field_name ) {
+			if ( globalOptions.verbose ) {
+				cout<< "--csv: using field for raster input: " <<raster_field_name<< endl; 
+			}
+			if ( !raster_directory )
+				raster_directory = ".";
+			
+			res = starspan_csv_raster_field(
+				vect,  
+				raster_field_name,
+				raster_directory,
+				select_fields, 
+				csv_name,
+				vector_layernum
+			);
+		}
+		else if ( globalOptions.dupPixelModes.size() > 0 ) {
+            res = starspan_csv2(
+                vect,
+                raster_filenames,
+                masks,
+                select_fields,
+                vector_layernum,
+                globalOptions.dupPixelModes,
+                csv_name
+            );
+			//res = starspan_csv_dup_pixel(
+			//	vect,  
+			//	raster_filenames,
+			//	masks,
+			//	select_fields, 
+			//	csv_name,
+			//	vector_layernum,
+			//	globalOptions.dupPixelModes
+			//);
+		}
+		else if ( raster_filenames.size() > 0 ) {
+			res = starspan_csv(
+				vect,  
+				raster_filenames,
+				select_fields, 
+				csv_name,
+				vector_layernum
+			);
+		}
+		else {
+			usage("--csv expects at least a raster input (use --raster)");
+		}
+	}
     
-	if ( do_report ) {
+    else if ( mini_prefix && globalOptions.dupPixelModes.size() > 0 ) {
+        // testing this new implementation:
+        res = starspan_miniraster2(
+            vect,  
+            raster_filenames,
+            masks,
+            select_fields, 
+            vector_layernum,
+            globalOptions.dupPixelModes,
+            mini_prefix,
+            mini_srs
+        );
+    }
+
+	
+	else if ( stats_name ) {
+		//Observer* obs = starspan_getStatsObserver(tr, select_stats, select_fields, stats_name);
+		//if ( obs )
+		//	tr.addObserver(obs);
+		
+		res = starspan_stats(
+			vect,  
+			raster_filenames,     
+			select_stats,
+			select_fields, 
+			stats_name,
+			vector_layernum
+		);
+		
+	}
+	
+	else if ( calbase_filename ) {
+		if ( !vect ) {
+			usage("--calbase expects a vector input (use --vector)");
+		}
+		if ( raster_filenames.size() == 0 ) {
+			usage("--calbase requires at least a raster input (use --raster)");
+		}
+		if ( !speclib_filename ) {
+			usage("--calbase expects a speclib input (use --speclib)");
+		}
+		res = starspan_tuct_2(
+			vect,  
+			raster_filenames,
+			speclib_filename,
+			callink_name,
+			select_stats,
+			calbase_filename
+		);
+	}
+	else if ( update_csv_name ) {
+		if ( !csv_name ) {
+			usage("--update-csv works with --csv. Please specify an existing CSV");
+		}
+		if ( vect ) {
+			usage("--update-csv does not expect a vector input");
+		}
+		if ( raster_filenames.size() == 0 ) {
+			usage("--update-csv requires at least a raster input");
+		}
+		res = starspan_update_csv(update_csv_name, raster_filenames, csv_name);
+	}
+	else if ( do_report ) {
 		bool done = vect || raster_filenames.size() > 0;
 		if ( vect ) {
 			starspan_report_vector(vect);
@@ -740,251 +753,135 @@ int main(int argc, char ** argv) {
 		if ( !done ) {
 			usage("--report: Please give at least one input file to report\n");
 		}
-        
-        goto end;
 	}
-    
-    if ( show_fields ) {
-        if ( !vect ) {
-            usage("--show-fields: provide the vector datasource\n");
-        }
-        vect->showFields(stdout);
-        
-        goto end;
-    }
-    
-    
+	else {
+		//
+		// Dispatch commands with direct traverser-based mechanism.
+		//
+		
+		// the traverser object	
+		Traverser tr;
+	
+		if ( globalOptions.pix_prop >= 0.0 )
+			tr.setPixelProportion(globalOptions.pix_prop);
+	
+        tr.setVectorSelectionParams(globalOptions.vSelParams);
+		
+		if ( globalOptions.FID >= 0 )
+			tr.setDesiredFID(globalOptions.FID);
+		
+		tr.setVerbose(globalOptions.verbose);
+		if ( globalOptions.progress )
+			tr.setProgress(globalOptions.progress_perc, cout);
+	
+		tr.setSkipInvalidPolygons(globalOptions.skip_invalid_polys);
 
-    if ( globalOptions.FID >= 0 ) {
-        traversr.setDesiredFID(globalOptions.FID);
-    }
-    
-    if ( globalOptions.progress ) {
-        traversr.setProgress(globalOptions.progress_perc, cout);
-    }
-    
-    
-    // some observers with minimum check of requirements
-
-    if ( dump_geometries_filename ) {
-        add_rasters_to_traverser(raster_filenames, traversr);
-        
-        if ( traversr.getNumRasters() == 0 && traversr.getVector() && globalOptions.FID >= 0 ) {
-            dumpFeature(traversr.getVector(), globalOptions.FID, dump_geometries_filename);
-        }
-        else {
-            Observer* obs = starspan_dump(traversr, dump_geometries_filename);
-            if ( obs ) {
-                traversr.addObserver(obs);
-            }
-        }
-    }
-
-    if ( jtstest_filename ) {
-        add_rasters_to_traverser(raster_filenames, traversr);
-        
-        Observer* obs = starspan_jtstest(traversr, jtstest_filename);
-        if ( obs ) {
-            traversr.addObserver(obs);
-        }
-    }
-
-    //
-    // commands with more strict checking of inputs:
-    //
-    
-    if ( !outprefix ) {
-        usage("--out-prefix: ?");
-    }
-    
-    if ( !outtype.length() ) {
-        usage("--out-type: ?");
-    }
-    
-    if ( outtype != "table" 
-    &&   outtype != "mini_raster_strip" 
-    &&   outtype != "mini_rasters"
-    &&   outtype != "rasterization"      ) {
-        // hmm, perhaps is one of the more internal commands:
-        if ( traversr.getNumObservers() > 0 ) {
-            // OK, continue with the traversal.
-            // See above for observers created by starspan_dump or starspan_jtstest.
-        }
-        else {
-            //  complain about not receiving a typical command:
-            string msg = string("--out-type: unrecognized type: ") +outtype;
-            usage_string(msg);
-        }
-    }
-    
-
-    
-    //
-    // Output: Table
-    //
-    if ( outtype == "table" ) {
-		if ( !vect ) {
-			usage("--out-type table expects a vector input (use --vector)");
+		if ( vect ) {
+			tr.setVector(vect);
+			tr.setLayerNum(vector_layernum);
 		}
-
-        if ( raster_filenames.size() == 0 && globalOptions.dupPixelModes.size() == 0 ) {
-            usage("--out-type table expects at least a raster input (use --raster)");
-        }
-
-        if ( table_suffix ) {
-            csv_name = string(outprefix) + table_suffix;
-            if ( globalOptions.dupPixelModes.size() > 0 ) {
-                res = starspan_csv2(
-                    vect,
-                    raster_filenames,
-                    masks,
-                    select_fields,
-                    vector_layernum,
-                    globalOptions.dupPixelModes,
-                    csv_name.c_str()
-                );
-            }
-            else if ( raster_filenames.size() > 0 ) {
-                res = starspan_csv(
-                    vect,  
-                    raster_filenames,
-                    select_fields, 
-                    csv_name.c_str(),
-                    vector_layernum
-                );
-            }
-        }
-        
-        //
-        // summaries:
-        //
-        
-        if ( summary_suffix ) {
-            string stats_name = string(outprefix) + summary_suffix;
-            
-            if ( select_stats.size() == 0 ) {
-                select_stats.push_back(DEFAULT_STAT);
-            }
-            
-            res = starspan_stats(
-                vect,  
-                raster_filenames,     
-                select_stats,
-                select_fields, 
-                stats_name.c_str(),
-                vector_layernum
-            );
-        }
-        
-        if ( class_summary_suffix ) {
-            add_rasters_to_traverser(raster_filenames, traversr);
-            
-            string count_by_class_name = string(outprefix) + class_summary_suffix;
-            Observer* obs = starspan_getCountByClassObserver(traversr, count_by_class_name.c_str());
-            if ( obs ) {
-                traversr.addObserver(obs);
-            }
-        }
-    }
-    
-    else if ( outtype == "mini_raster_strip" ) {
-        string mrst_img_filename = string(outprefix) + mrst_img_suffix;
-        string mrst_shp_filename = string(outprefix) + mrst_shp_suffix;
-        string mrst_fid_filename = string(outprefix) + mrst_fid_suffix;
-        string mrst_glt_filename = string(outprefix) + mrst_glt_suffix;
-        
-        if ( globalOptions.dupPixelModes.size() > 0 ) {
-            res = starspan_minirasterstrip2(
-                vect,  
-                raster_filenames,
-                masks,
-                select_fields, 
-                vector_layernum,
-                globalOptions.dupPixelModes,
-                mrst_img_filename, 
-                mrst_shp_filename,
-                mrst_fid_filename,
-                mrst_glt_filename
-            );
-        }
-        
-        else {
-            add_rasters_to_traverser(raster_filenames, traversr);
-            
-			Observer* obs = starspan_getMiniRasterStripObserver(
-                traversr, mrst_img_filename.c_str(), mrst_shp_filename.c_str()
-            );
-			if ( obs ) {
-				traversr.addObserver(obs);
-            }
+		
+		for ( unsigned i = 0; i < raster_filenames.size(); i++ ) {    
+			tr.addRaster(new Raster(raster_filenames[i]));
 		}
-    }
-    
-    else if ( outtype == "mini_rasters" ) {
-        string mini_prefix = string(outprefix) + miniraster_suffix;
-        
-        if ( globalOptions.dupPixelModes.size() > 0 ) {
-            res = starspan_miniraster2(
-                vect,  
-                raster_filenames,
-                masks,
-                select_fields, 
-                vector_layernum,
-                globalOptions.dupPixelModes,
-                mini_prefix.c_str(),
-                mini_srs
-            );
-        }
-        
-		else {
-            add_rasters_to_traverser(raster_filenames, traversr);
-			Observer* obs = starspan_getMiniRasterObserver(mini_prefix.c_str(), mini_srs);
-			if ( obs ) {
-				traversr.addObserver(obs);
-            }
+	
+		if ( globalOptions.bufferParams.given ) {
+			if ( globalOptions.verbose ) {
+				cout<< "Using buffer parameters:"
+				    << "\n\tdistance = " <<globalOptions.bufferParams.distance
+				    << "\n\tquadrantSegments = " <<globalOptions.bufferParams.quadrantSegments
+					<<endl;
+				;
+			}
+			tr.setBufferParameters(globalOptions.bufferParams);
 		}
-        
-    }
-    
-    else if ( outtype == "rasterization" ) {
-        add_rasters_to_traverser(raster_filenames, traversr);
-        
-        rasterizeParams.outRaster_filename = (string(outprefix) + rasterize_suffix).c_str();
-        rasterizeParams.fillNoData = true;
-        
-        GDALDataset* ds = traversr.getRaster(0)->getDataset();
-        rasterizeParams.projection = ds->GetProjectionRef();
-        ds->GetGeoTransform(rasterizeParams.geoTransform);
-        Observer* obs = starspan_getRasterizeObserver(&rasterizeParams);
-        if ( obs ) {
-            traversr.addObserver(obs);
-        }
-    }
-    
-    
-    
-    /////////////////////////////////////////////////////////////
-    // now, do the traversal for the observer-based processing:
-    //
-    
-    if ( traversr.getNumObservers() > 0 ) {
-        // let's get to work!	
-        traversr.traverse();
-
-        if ( globalOptions.report_summary ) {
-            traversr.reportSummary();
-        }
-        
-        // release observers:
-        traversr.releaseObservers();
-    }
-    
-    // release data input objects:
-    // Note that we get the rasters from the traverser, while
-    // the single vector is directly deleted below:
-    for ( int i = 0; i < traversr.getNumRasters(); i++ ) {
-        delete traversr.getRaster(i);
-    }
+			
+		if ( csv_name || envi_name || mini_prefix || mini_raster_strip_filename || jtstest_filename) { 
+			if ( tr.getNumRasters() == 0 || !tr.getVector() ) {
+				usage("Specified output option requires both a raster and a vector to proceed\n");
+			}
+		}
+	
+	
+		//	
+		// COMMANDS
+		//
+		
+		if ( count_by_class_name ) {
+			Observer* obs = starspan_getCountByClassObserver(tr, count_by_class_name);
+			if ( obs )
+				tr.addObserver(obs);
+		}
+		
+		if ( envi_name ) {
+			Observer* obs = starspan_gen_envisl(tr, select_fields, envi_name, envi_image);
+			if ( obs )
+				tr.addObserver(obs);
+		}
+		
+		if ( dump_geometries_filename ) {
+			if ( tr.getNumRasters() == 0 && tr.getVector() && globalOptions.FID >= 0 ) {
+				dumpFeature(tr.getVector(), globalOptions.FID, dump_geometries_filename);
+			}
+			else {
+				Observer* obs = starspan_dump(tr, dump_geometries_filename);
+				if ( obs )
+					tr.addObserver(obs);
+			}
+		}
+	
+		if ( jtstest_filename ) {
+			Observer* obs = starspan_jtstest(tr, jtstest_filename);
+			if ( obs )
+				tr.addObserver(obs);
+		}
+	
+		if ( mini_raster_strip_filename ) {
+			Observer* obs = starspan_getMiniRasterStripObserver(tr, mini_raster_strip_filename);
+			if ( obs )
+				tr.addObserver(obs);
+		}
+	
+		if ( mini_prefix ) {
+			//OLD: starspan_minirasters(tr, mini_prefix, mini_srs);
+			//NEW:
+			Observer* obs = starspan_getMiniRasterObserver(tr, mini_prefix, mini_srs);
+			if ( obs )
+				tr.addObserver(obs);
+		}
+	
+		// the following don't use Observer scheme;  
+		// just call corresponding functions:	
+		if ( show_fields ) {
+			if ( !tr.getVector() ) {
+				usage("--show-fields: Please provide the vector datasource\n");
+			}
+			tr.getVector()->showFields(stdout);
+		}
+		
+		//
+		// now observer-based processing:
+		//
+		
+		if ( tr.getNumObservers() > 0 ) {
+			// let's get to work!	
+			tr.traverse();
+	
+			if ( globalOptions.report_summary ) {
+				tr.reportSummary();
+			}
+			
+			// release observers:
+			tr.releaseObservers();
+		}
+		
+		// release data input objects:
+        // Note that we get the rasters from the traverser, while
+        // the single vector is directly deleted below:
+		for ( int i = 0; i < tr.getNumRasters(); i++ ) {
+			delete tr.getRaster(i);
+		}
+	}
 	
 end:
 	if ( vect ) {
@@ -995,6 +892,7 @@ end:
 	Raster::end();
 	
 	// more final cleanup:
+	////CPLPopErrorHandler();
 	Unload::Release();	
 	
 	if ( report_elapsed_time ) {

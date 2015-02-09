@@ -2,7 +2,7 @@
 // STARSpan project
 // Carlos A. Rueda
 // starspan_jtstest - generate JTS test
-// $Id: starspan_jtstest.cc,v 1.3 2008-04-11 19:15:12 crueda Exp $
+// $Id: starspan_jtstest.cc,v 1.2 2008-03-04 02:13:05 crueda Exp $
 //
 
 #include "starspan.h"           
@@ -55,8 +55,7 @@ struct JtsTestObserver : public Observer {
 	/**
 	  *
 	  */
-	void intersectionFound(IntersectionInfo& intersInfo) {
-        OGRFeature* feature = intersInfo.feature;
+	void intersectionFound(OGRFeature* feature) {
 		if ( pp ) {
 			finish_case();
 		}
