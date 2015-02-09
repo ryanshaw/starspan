@@ -1,3 +1,9 @@
+### Please note
+
+This was forked to add previous versions for Starspan.  The [Ecotrust repository](https://github.com/Ecotrust/starspan) does not contain any version history, I've added version 1.0.07 and version 1.0.08f as we needed a specific older version for use in a project.
+
+---
+
 # About Starspan
 
 StarSpan is designed to bridge the raster and vector worlds of spatial
