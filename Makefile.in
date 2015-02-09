@@ -16,7 +16,7 @@
 
 #########################################################
 # starspan Makefile.am 
-# $Id: Makefile.am,v 1.15 2008-05-02 09:39:18 crueda Exp $
+# $Id: Makefile.am,v 1.16 2008-07-08 07:43:20 crueda Exp $
 #########################################################
 
 
@@ -59,11 +59,9 @@ am_starspan2_OBJECTS = starspan2.$(OBJEXT) starspan_grass.$(OBJEXT) \
 	starspan_rasterize.$(OBJEXT) starspan_dup_pixel.$(OBJEXT) \
 	starspan_csv2.$(OBJEXT) starspan_minirasters2.$(OBJEXT) \
 	starspan_minirasterstrip2.$(OBJEXT) starspan_stats.$(OBJEXT) \
-	starspan_countbyclass.$(OBJEXT) starspan_update_csv.$(OBJEXT) \
-	starspan_csv.$(OBJEXT) starspan_csv_raster_field.$(OBJEXT) \
-	starspan_gen_envisl.$(OBJEXT) starspan_minirasters.$(OBJEXT) \
-	starspan_jtstest.$(OBJEXT) starspan_util.$(OBJEXT) \
-	starspan_dump.$(OBJEXT) starspan_tuct2.$(OBJEXT) Csv.$(OBJEXT) \
+	starspan_countbyclass.$(OBJEXT) starspan_csv.$(OBJEXT) \
+	starspan_minirasters.$(OBJEXT) starspan_jtstest.$(OBJEXT) \
+	starspan_util.$(OBJEXT) starspan_dump.$(OBJEXT) Csv.$(OBJEXT) \
 	CsvOutput.$(OBJEXT) jts.$(OBJEXT) Raster_gdal.$(OBJEXT) \
 	LineRasterizer.$(OBJEXT) Stats.$(OBJEXT) traverser.$(OBJEXT) \
 	polyqt.$(OBJEXT) pixset.$(OBJEXT) Progress.$(OBJEXT) \
@@ -202,15 +200,11 @@ starspan2_SOURCES = \
 	src/starspan_minirasterstrip2.cc \
 	src/starspan_stats.cc \
 	src/starspan_countbyclass.cc \
-	src/starspan_update_csv.cc \
 	src/starspan_csv.cc \
-	src/starspan_csv_raster_field.cc \
-	src/starspan_gen_envisl.cc \
 	src/starspan_minirasters.cc \
 	src/starspan_jtstest.cc \
 	src/starspan_util.cc \
 	src/starspan_dump.cc \
-	src/starspan_tuct2.cc \
 	src/csv/Csv.cc \
 	src/csv/CsvOutput.cc \
 	src/jts/jts.cc \
@@ -361,10 +355,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/starspan_countbyclass.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/starspan_csv.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/starspan_csv2.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/starspan_csv_raster_field.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/starspan_dump.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/starspan_dup_pixel.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/starspan_gen_envisl.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/starspan_grass.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/starspan_jtstest.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/starspan_minirasters.Po@am__quote@
@@ -372,8 +364,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/starspan_minirasterstrip2.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/starspan_rasterize.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/starspan_stats.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/starspan_tuct2.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/starspan_update_csv.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/starspan_util.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/traverser.Po@am__quote@
 
@@ -517,20 +507,6 @@ starspan_countbyclass.obj: src/starspan_countbyclass.cc
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o starspan_countbyclass.obj `if test -f 'src/starspan_countbyclass.cc'; then $(CYGPATH_W) 'src/starspan_countbyclass.cc'; else $(CYGPATH_W) '$(srcdir)/src/starspan_countbyclass.cc'; fi`
 
-starspan_update_csv.o: src/starspan_update_csv.cc
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT starspan_update_csv.o -MD -MP -MF $(DEPDIR)/starspan_update_csv.Tpo -c -o starspan_update_csv.o `test -f 'src/starspan_update_csv.cc' || echo '$(srcdir)/'`src/starspan_update_csv.cc
-@am__fastdepCXX_TRUE@	mv -f $(DEPDIR)/starspan_update_csv.Tpo $(DEPDIR)/starspan_update_csv.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/starspan_update_csv.cc' object='starspan_update_csv.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o starspan_update_csv.o `test -f 'src/starspan_update_csv.cc' || echo '$(srcdir)/'`src/starspan_update_csv.cc
-
-starspan_update_csv.obj: src/starspan_update_csv.cc
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT starspan_update_csv.obj -MD -MP -MF $(DEPDIR)/starspan_update_csv.Tpo -c -o starspan_update_csv.obj `if test -f 'src/starspan_update_csv.cc'; then $(CYGPATH_W) 'src/starspan_update_csv.cc'; else $(CYGPATH_W) '$(srcdir)/src/starspan_update_csv.cc'; fi`
-@am__fastdepCXX_TRUE@	mv -f $(DEPDIR)/starspan_update_csv.Tpo $(DEPDIR)/starspan_update_csv.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/starspan_update_csv.cc' object='starspan_update_csv.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o starspan_update_csv.obj `if test -f 'src/starspan_update_csv.cc'; then $(CYGPATH_W) 'src/starspan_update_csv.cc'; else $(CYGPATH_W) '$(srcdir)/src/starspan_update_csv.cc'; fi`
-
 starspan_csv.o: src/starspan_csv.cc
 @am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT starspan_csv.o -MD -MP -MF $(DEPDIR)/starspan_csv.Tpo -c -o starspan_csv.o `test -f 'src/starspan_csv.cc' || echo '$(srcdir)/'`src/starspan_csv.cc
 @am__fastdepCXX_TRUE@	mv -f $(DEPDIR)/starspan_csv.Tpo $(DEPDIR)/starspan_csv.Po
@@ -544,34 +520,6 @@ starspan_csv.obj: src/starspan_csv.cc
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/starspan_csv.cc' object='starspan_csv.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o starspan_csv.obj `if test -f 'src/starspan_csv.cc'; then $(CYGPATH_W) 'src/starspan_csv.cc'; else $(CYGPATH_W) '$(srcdir)/src/starspan_csv.cc'; fi`
-
-starspan_csv_raster_field.o: src/starspan_csv_raster_field.cc
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT starspan_csv_raster_field.o -MD -MP -MF $(DEPDIR)/starspan_csv_raster_field.Tpo -c -o starspan_csv_raster_field.o `test -f 'src/starspan_csv_raster_field.cc' || echo '$(srcdir)/'`src/starspan_csv_raster_field.cc
-@am__fastdepCXX_TRUE@	mv -f $(DEPDIR)/starspan_csv_raster_field.Tpo $(DEPDIR)/starspan_csv_raster_field.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/starspan_csv_raster_field.cc' object='starspan_csv_raster_field.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o starspan_csv_raster_field.o `test -f 'src/starspan_csv_raster_field.cc' || echo '$(srcdir)/'`src/starspan_csv_raster_field.cc
-
-starspan_csv_raster_field.obj: src/starspan_csv_raster_field.cc
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT starspan_csv_raster_field.obj -MD -MP -MF $(DEPDIR)/starspan_csv_raster_field.Tpo -c -o starspan_csv_raster_field.obj `if test -f 'src/starspan_csv_raster_field.cc'; then $(CYGPATH_W) 'src/starspan_csv_raster_field.cc'; else $(CYGPATH_W) '$(srcdir)/src/starspan_csv_raster_field.cc'; fi`
-@am__fastdepCXX_TRUE@	mv -f $(DEPDIR)/starspan_csv_raster_field.Tpo $(DEPDIR)/starspan_csv_raster_field.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/starspan_csv_raster_field.cc' object='starspan_csv_raster_field.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o starspan_csv_raster_field.obj `if test -f 'src/starspan_csv_raster_field.cc'; then $(CYGPATH_W) 'src/starspan_csv_raster_field.cc'; else $(CYGPATH_W) '$(srcdir)/src/starspan_csv_raster_field.cc'; fi`
-
-starspan_gen_envisl.o: src/starspan_gen_envisl.cc
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT starspan_gen_envisl.o -MD -MP -MF $(DEPDIR)/starspan_gen_envisl.Tpo -c -o starspan_gen_envisl.o `test -f 'src/starspan_gen_envisl.cc' || echo '$(srcdir)/'`src/starspan_gen_envisl.cc
-@am__fastdepCXX_TRUE@	mv -f $(DEPDIR)/starspan_gen_envisl.Tpo $(DEPDIR)/starspan_gen_envisl.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/starspan_gen_envisl.cc' object='starspan_gen_envisl.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o starspan_gen_envisl.o `test -f 'src/starspan_gen_envisl.cc' || echo '$(srcdir)/'`src/starspan_gen_envisl.cc
-
-starspan_gen_envisl.obj: src/starspan_gen_envisl.cc
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT starspan_gen_envisl.obj -MD -MP -MF $(DEPDIR)/starspan_gen_envisl.Tpo -c -o starspan_gen_envisl.obj `if test -f 'src/starspan_gen_envisl.cc'; then $(CYGPATH_W) 'src/starspan_gen_envisl.cc'; else $(CYGPATH_W) '$(srcdir)/src/starspan_gen_envisl.cc'; fi`
-@am__fastdepCXX_TRUE@	mv -f $(DEPDIR)/starspan_gen_envisl.Tpo $(DEPDIR)/starspan_gen_envisl.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/starspan_gen_envisl.cc' object='starspan_gen_envisl.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o starspan_gen_envisl.obj `if test -f 'src/starspan_gen_envisl.cc'; then $(CYGPATH_W) 'src/starspan_gen_envisl.cc'; else $(CYGPATH_W) '$(srcdir)/src/starspan_gen_envisl.cc'; fi`
 
 starspan_minirasters.o: src/starspan_minirasters.cc
 @am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT starspan_minirasters.o -MD -MP -MF $(DEPDIR)/starspan_minirasters.Tpo -c -o starspan_minirasters.o `test -f 'src/starspan_minirasters.cc' || echo '$(srcdir)/'`src/starspan_minirasters.cc
@@ -628,20 +576,6 @@ starspan_dump.obj: src/starspan_dump.cc
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/starspan_dump.cc' object='starspan_dump.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o starspan_dump.obj `if test -f 'src/starspan_dump.cc'; then $(CYGPATH_W) 'src/starspan_dump.cc'; else $(CYGPATH_W) '$(srcdir)/src/starspan_dump.cc'; fi`
-
-starspan_tuct2.o: src/starspan_tuct2.cc
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT starspan_tuct2.o -MD -MP -MF $(DEPDIR)/starspan_tuct2.Tpo -c -o starspan_tuct2.o `test -f 'src/starspan_tuct2.cc' || echo '$(srcdir)/'`src/starspan_tuct2.cc
-@am__fastdepCXX_TRUE@	mv -f $(DEPDIR)/starspan_tuct2.Tpo $(DEPDIR)/starspan_tuct2.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/starspan_tuct2.cc' object='starspan_tuct2.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o starspan_tuct2.o `test -f 'src/starspan_tuct2.cc' || echo '$(srcdir)/'`src/starspan_tuct2.cc
-
-starspan_tuct2.obj: src/starspan_tuct2.cc
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT starspan_tuct2.obj -MD -MP -MF $(DEPDIR)/starspan_tuct2.Tpo -c -o starspan_tuct2.obj `if test -f 'src/starspan_tuct2.cc'; then $(CYGPATH_W) 'src/starspan_tuct2.cc'; else $(CYGPATH_W) '$(srcdir)/src/starspan_tuct2.cc'; fi`
-@am__fastdepCXX_TRUE@	mv -f $(DEPDIR)/starspan_tuct2.Tpo $(DEPDIR)/starspan_tuct2.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/starspan_tuct2.cc' object='starspan_tuct2.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o starspan_tuct2.obj `if test -f 'src/starspan_tuct2.cc'; then $(CYGPATH_W) 'src/starspan_tuct2.cc'; else $(CYGPATH_W) '$(srcdir)/src/starspan_tuct2.cc'; fi`
 
 Csv.o: src/csv/Csv.cc
 @am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT Csv.o -MD -MP -MF $(DEPDIR)/Csv.Tpo -c -o Csv.o `test -f 'src/csv/Csv.cc' || echo '$(srcdir)/'`src/csv/Csv.cc

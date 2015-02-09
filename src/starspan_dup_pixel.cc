@@ -3,7 +3,7 @@
 // Carlos A. Rueda
 // starspan_dup_pixel - general processing of multiple rasters with handling of duplicate pixels.
 // It's a generalization based on starspan_csv_dup_pixel.cc,v 1.15
-// $Id: starspan_dup_pixel.cc,v 1.2 2008-03-03 20:13:33 crueda Exp $
+// $Id: starspan_dup_pixel.cc,v 1.4 2008-05-15 20:44:28 crueda Exp $
 //
 
 #include "starspan.h"
@@ -119,6 +119,158 @@ struct RasterInfo {
 };
 
 
+/////////////////////////////////////////////////////////////////////////////
+///////// ignore_nodata handling
+
+/**
+ * Determines whether the feature should be considered according to the
+ * ignore_nodata mode.
+ */
+static bool ok_for_nodata(DupPixelMode* ignore_nodata, OGRFeature* feature, RasterInfo* rasterInfo) {
+    
+    static enum { ALL_BANDS, ANY_BAND, ONE_BAND } band_param;
+    static int band_number = 0;
+    
+    band_param = ignore_nodata->param1 == "all_bands" ? ALL_BANDS
+               : ignore_nodata->param1 == "any_band" ? ANY_BAND
+               : ONE_BAND
+   ;
+   if ( band_param == ONE_BAND ) {
+       band_number = (int) ignore_nodata->arg;
+   }
+   
+	// strategy:
+    // - Traverse feature with a NoDataObserver
+    
+    /**
+      * Checks bands for nodata values according to the band_param and band_number
+      * variables above. If some pixel fails to satisfy the ignore_nodata mode,
+      * its location [col0, row0] is recorded and the nodataFound flag is
+      * assigned true.
+      */
+    struct NoDataObserver : public Observer {
+        GlobalInfo* global_info;
+        bool OK;
+        bool nodataFound;
+        
+        int col0;
+        int row0;
+            
+        NoDataObserver() : global_info(0), nodataFound(false) {
+        }
+        
+        void init(GlobalInfo& info) {
+            global_info = &info;
+    
+            OK = false;   // but let's see ...
+            
+            const unsigned noBands = global_info->bands.size();
+            if ( noBands == 0 ) {
+                cerr<< "NoDataObserver: warning: no bands in raster" <<endl;
+                return;
+            }
+    
+            if ( band_param == ONE_BAND ) {
+                if ( band_number <= 0 || band_number > noBands ) {
+                    cerr<< "NoDataObserver: warning: band number " <<band_number
+                        << " is not between 1 and " <<noBands<< endl;
+                    return;
+                }
+            }
+            // now, all seems OK to continue processing		
+            OK = true;
+        }
+        
+        void addPixel(TraversalEvent& ev) { 
+            if ( !OK || nodataFound ) {
+                return;
+            }
+            void* band_values = ev.bandValues;
+            
+            // check bands for nodata values
+            char* ptr = (char*) band_values;
+            const unsigned noBands = global_info->bands.size();
+            
+            // check for nodata in a particular band?
+            if ( band_param == ONE_BAND ) {
+                GDALDataType bandType = global_info->bands[band_number]->GetRasterDataType();
+                int typeSize = GDALGetDataTypeSize(bandType) >> 3;
+                
+                ptr += (band_number - 1) * typeSize;
+                double value = starspan_extract_double_value(bandType, ptr);
+                if ( fabs(value - globalOptions.nodata) <= 10e-4 ) {
+                    nodataFound = true;
+                }
+            }
+            
+            // check for nodata in any or all the bands?
+            else {
+                assert( band_param == ANY_BAND || band_param == ALL_BANDS );
+                
+                int noNodatas = 0;
+                // check in sequence while necessary:
+                for ( unsigned i = 0; i < noBands; i++ ) {
+                    GDALDataType bandType = global_info->bands[i]->GetRasterDataType();
+                    int typeSize = GDALGetDataTypeSize(bandType) >> 3;
+                    
+                    double value = starspan_extract_double_value(bandType, ptr);
+                    if ( fabs(value - globalOptions.nodata) <= 10e-4 ) {
+                        // one more nodata:
+                        noNodatas++;
+                        if ( band_param == ANY_BAND ) {
+                            break;
+                        }
+                    }
+                    
+                    // move to next piece of data in buffer:
+                    ptr += typeSize;
+                }
+                
+                if ( noNodatas > 0 ) {
+                    if ( band_param == ANY_BAND ) {
+                        nodataFound = true;
+                    }
+                    else {
+                        if ( noNodatas == noBands ) {
+                            nodataFound = true;
+                        }
+                    }
+                }
+            }
+            
+            if ( nodataFound ) {
+                col0 = 1 + ev.pixel.col;
+                row0 = 1 + ev.pixel.row;
+            }
+        }
+    };
+    
+    NoDataObserver obs;
+    
+	Traverser tr;
+	tr.addObserver(&obs);
+    
+	tr.setVector(vect);
+	tr.setLayerNum(layernum);
+	tr.setDesiredFID(feature->GetFID());
+               
+    Raster ri_raster(rasterInfo->ri_filename);
+    tr.addRaster(&ri_raster);
+    
+	bool prevResetReading = Traverser::_resetReading;
+	Traverser::_resetReading = false;
+    
+    tr.traverse();
+    
+    Traverser::_resetReading = prevResetReading;
+    
+    return obs.OK && !obs.nodataFound;
+}
+
+
+
+/////////////////////////////////////////////////////////////////////////////
+///////// mask handling
 
 /**
   * Checks bands for zero values. If a zero is found, it records its
@@ -199,13 +351,6 @@ static bool within_mask(OGRFeature* feature, RasterInfo* rasterInfo) {
 	tr.setLayerNum(layernum);
 	tr.setDesiredFID(feature->GetFID());
     
-	if ( globalOptions.pix_prop >= 0.0 )
-		tr.setPixelProportion(globalOptions.pix_prop);
-    
-    tr.setVectorSelectionParams(globalOptions.vSelParams);
-    
-	tr.setSkipInvalidPolygons(globalOptions.skip_invalid_polys);
-    
     tr.addRaster(rasterInfo->ri_mask);
     
 	bool prevResetReading = Traverser::_resetReading;
@@ -265,17 +410,16 @@ static void process_modes_feature(
 		vector<RasterInfo*>& rastInfos) {
 	
 
-	bool ignore_nodata = false;
+    // will point to the first "ignore_nodata" mode, if any:
+	DupPixelMode* ignore_nodata = 0;
 	
-	// a pre-check of given modes:
+	// a pre-check of given modes; also update ignore_nodata accordingly
 	for (int k = 0, count = dupPixelModes.size(); k < count; k++ ) {
 		string& code = dupPixelModes[k].code;
-		
 		assert( code == "ignore_nodata" || code == "direction" || code == "distance" );
 		
-		if ( code == "ignore_nodata" ) {
-			ignore_nodata = true;
-			break;
+		if ( !ignore_nodata && code == "ignore_nodata" ) {
+			ignore_nodata = &dupPixelModes[k];
 		}
 	}
 	
@@ -285,13 +429,6 @@ static void process_modes_feature(
             << "--duplicate_pixel: FID " <<feature->GetFID()<< endl;
 	}
 	
-	///////////////////////////////////////////////////////////////////
-	// ignore_nodata?
-	// TODO Not yet implemented.  Mode IGNORED at this time.
-	if ( ignore_nodata ) {
-		cout<< "--duplicate_pixel: Warning: ignore_nodata ignored, not yet implemented."<<endl;
-	}
-
 	//
 	// get geometry
 	//
@@ -335,6 +472,40 @@ static void process_modes_feature(
 	}
     
     
+	///////////////////////////////////////////////////////////////////
+	// ignore_nodata?
+	if ( ignore_nodata ) {
+        // select according to ignore_nodata mode:
+        if ( globalOptions.verbose ) {
+            cout<< "--duplicate_pixel: Selecting according to ignore_nodata mode: "
+                << ignore_nodata->toString() <<endl
+            ;
+        }
+        vector<RasterInfo*> newCandidates;
+        for ( unsigned i = 0, numRasters = candidates.size(); i < numRasters; i++ ) {
+            RasterInfo* rasterInfo = candidates[i];
+            if ( ok_for_nodata(ignore_nodata, feature, rasterInfo) ) {
+                newCandidates.push_back(rasterInfo);
+                if ( globalOptions.verbose ) {
+                    cout<< "\t" << "  " <<rasterInfo->ri_filename<< endl;
+                }
+            }
+        }
+        // update candidates list:
+        candidates.clear();
+        for (unsigned i = 0; i < newCandidates.size(); i++ ) {
+            candidates.push_back(newCandidates[i]);
+        }
+        
+        if ( candidates.size() == 0 ) {
+            if ( globalOptions.verbose ) {
+                cout<< "--duplicate_pixel: FID " <<feature->GetFID()<< ": No raster containing the feature" << endl;
+            }
+            delete feature_center;
+            return;
+        }
+	}
+
 	/////////////////////////////////////////////////////////////////
 	// if masks are given, then check that all pixels in features contain actual
     // data according to the masks:
@@ -381,6 +552,7 @@ static void process_modes_feature(
 	else {
 		/////////////////////////////////////////////////////////
 		// Apply given modes until one candidate is obtained
+        // Note that ignore_nodata is handled above, so it's skipped below
 		
 		if ( globalOptions.verbose ) {
 			cout<< "--duplicate_pixel: Applying duplicate pixel mode(s) to FID " <<feature->GetFID()<< ": " 
@@ -388,13 +560,20 @@ static void process_modes_feature(
 		}
 		
 		// apply each mode in order while there are more than one candidate:
+        // Note that ignore_nodata is skipped here.
 		for ( unsigned m = 0; m < dupPixelModes.size(); m++ ) {
-			DupPixelMode& mode = dupPixelModes[m];
 			
 			if ( candidates.size() <= 1 ) {
 				break;
 			}
 			
+			DupPixelMode& mode = dupPixelModes[m];
+
+            if ( mode.code == "ignore_nodata" ) {
+                // nothing to do here. Should be handled above.
+                continue;
+            }
+            
 			if ( globalOptions.verbose ) {
 				cout<< "--duplicate_pixel: Applying duplicate pixel mode: " <<mode.code<< " " <<mode.arg<< endl;
 			}

@@ -3,12 +3,12 @@
 <!--
 	StarSpan for Windows Installation specification 
 	Carlos A. Rueda
-	$Id: izinstall.xml,v 1.3 2007-10-19 19:15:39 crueda Exp $
+	$Id: izinstall.xml,v 1.5 2008-07-20 06:16:58 crueda Exp $
 -->
 <installation version="1.0">
     <info>
         <appname>StarSpanGUI</appname>
-        <appversion>0.2.0</appversion>
+        <appversion>1.2.02</appversion>
         <url>http://starspan.casil.ucdavis.edu</url>
     </info>
     

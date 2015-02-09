@@ -2,7 +2,7 @@
 // STARSpan project
 // Carlos A. Rueda
 // minirasters2 - generate minirasters from multiple rasters with duplicate pixel handling
-// $Id: starspan_minirasters2.cc,v 1.5 2008-05-02 09:39:18 crueda Exp $
+// $Id: starspan_minirasters2.cc,v 1.6 2008-05-09 00:50:36 crueda Exp $
 //
 
 #include "starspan.h"
@@ -50,14 +50,7 @@ static void extractFunction(ExtractionItem* item) {
     Raster* raster = new Raster(item->rasterFilename);  
     tr.addRaster(raster);
 
-    if ( globalOptions.pix_prop >= 0.0 )
-		tr.setPixelProportion(globalOptions.pix_prop);
-    
-    tr.setVectorSelectionParams(globalOptions.vSelParams);
-    
     tr.setDesiredFID(globalOptions.FID);
-	tr.setVerbose(globalOptions.verbose);
-    tr.setSkipInvalidPolygons(globalOptions.skip_invalid_polys);
     
     // - Create and register MiniRasterObserver
     Observer* obs = starspan_getMiniRasterObserver(mini_prefix, mini_srs);

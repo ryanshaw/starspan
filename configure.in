@@ -1,6 +1,6 @@
 ###########################################################
 # starspan configure.in
-# $Id: configure.in,v 1.29 2008-05-08 01:08:12 crueda Exp $
+# $Id: configure.in,v 1.32 2008-07-26 21:35:46 crueda Exp $
 ###########################################################
 
 AC_INIT(src/starspan2.cc)
@@ -9,7 +9,7 @@ AC_PROG_CC
 AC_PROG_CXX
 AC_PATH_PROGS(SH, sh)
 AC_PROG_INSTALL
-STARSPAN_VERSION=1.0.08f
+STARSPAN_VERSION=1.2.05
 AM_INIT_AUTOMAKE(starspan,$STARSPAN_VERSION)
 AC_SUBST(STARSPAN_VERSION)
 AC_CONFIG_HEADERS(src/config.h)

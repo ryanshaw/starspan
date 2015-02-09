@@ -1,7 +1,7 @@
 <!--
 	Build for StarSpan for Windows
 	Carlos A. Rueda
-	$Id: build.xml,v 1.10 2008-03-28 01:30:06 crueda Exp $
+	$Id: build.xml,v 1.11 2008-07-18 22:02:34 crueda Exp $
 -->
 <project name="StarSpan" default="installer" >
 	<!-- load basic properties -->
@@ -66,6 +66,8 @@ Copyright agreement:
 
 	<target name="prepare-inst" depends="init">
 		<delete dir="${dist}/base_dist"/>
+		<copy file="../../starspan.jars/guie.jar" todir="${dist}/base_dist/bin"/>
+		<copy file="../../gui/base_dist/bin/starspan.guie" todir="${dist}/base_dist/bin"/>
 		<copy todir="${dist}/base_dist">
 			<fileset dir="base_dist"/> 
 		</copy>

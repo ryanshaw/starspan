@@ -2,7 +2,7 @@
 // StarSpan project
 // Carlos A. Rueda
 // starspan_grass GRASS interface
-// $Id: starspan_grass.cc,v 1.15 2008-04-25 01:51:23 crueda Exp $
+// $Id: starspan_grass.cc,v 1.16 2008-05-09 00:50:36 crueda Exp $
 //
 /*
     This is a GRASS interface to some of the available StarSpan commands.
@@ -517,7 +517,6 @@ static int command_rasterize(int argc, char ** argv) {
     Observer* obs = starspan_getRasterizeObserver(&rasterizeParams);
     if ( obs ) {
 		Traverser tr;
-		tr.setVerbose(globalOptions.verbose);
         tr.setVector(vect);
         tr.setLayerNum(vector_layernum);
 		tr.addRaster(rast);

@@ -2,7 +2,7 @@
 // STARSpan project
 // Traverse::processValidPolygon_QT
 // Carlos A. Rueda
-// $Id: polyqt.cc,v 1.6 2007-12-11 06:07:14 crueda Exp $
+// $Id: polyqt.cc,v 1.7 2008-05-09 00:50:36 crueda Exp $
 // Quadtree algorithm for polygon rasterization 
 //
 
@@ -75,16 +75,16 @@ void Traverser::rasterize_poly_QT(_Rect& e, Polygon* i) {
 	}
 	
 	//	
-	// if pixelProportion > 0.0 we can check if the area of intersection
+	// if globalOptions.pix_prop > 0.0 we can check if the area of intersection
 	// is too small compared to the minimum required by that pixel proportion:
-	if ( pixelProportion > 0.0 ) {
+	if ( globalOptions.pix_prop > 0.0 ) {
 		if ( area_i < pixelProportion_times_pix_abs_area ) { 
 			// do nothing (we can safely discard the whole envelope).
 			return;
 		}
 	}
 	else {  
-		// pixelProportion == 0.0: means that just the intersection 
+		// globalOptions.pix_prop == 0.0: means that just the intersection 
 		// (i != null) will be enough condition to include the envelope 
 		// when this is just a pixel:
 		if ( e.cols == e.rows && e.rows == 1 ) {
@@ -128,21 +128,22 @@ void Traverser::rasterize_poly_QT(_Rect& e, Polygon* i) {
 }
 
 // implicitily does a quadtree-like scan:
+// MP 20110817 : remove C-style casts and use dynamic_cast instead
 void Traverser::rasterize_geometry_QT(_Rect& e, Geometry* i) {
 	if ( i == NULL || e.empty() )
 		return;
 	GeometryTypeId type = i->getGeometryTypeId();
 	switch ( type ) {
 		case GEOS_POLYGON:
-			rasterize_poly_QT(e, (Polygon*) i);
+			rasterize_poly_QT(e, dynamic_cast<Polygon*>(i)); // (Polygon*) i);
 			break;
 			
 		case GEOS_MULTIPOLYGON:
 		case GEOS_GEOMETRYCOLLECTION: {
-			GeometryCollection* gc = (GeometryCollection*) i; 
+			GeometryCollection* gc = dynamic_cast<GeometryCollection*>(i); // (GeometryCollection*) i; 
 			for ( int j = 0; j < gc->getNumGeometries(); j++ ) {
 				Geometry* g = (Geometry*) gc->getGeometryN(j);
-				rasterize_geometry_QT(e, (Polygon*) g);
+				rasterize_geometry_QT(e, dynamic_cast<Polygon*>(g)); // (Polygon*) g);
 			}
 			break;
 		}

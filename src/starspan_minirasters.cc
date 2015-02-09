@@ -2,7 +2,7 @@
 // STARSpan project
 // Carlos A. Rueda
 // starspan_minirasters - generate mini rasters including strip
-// $Id: starspan_minirasters.cc,v 1.22 2008-05-08 00:42:20 crueda Exp $
+// $Id: starspan_minirasters.cc,v 1.24 2008-07-08 07:43:20 crueda Exp $
 //
 
 #include "starspan.h"           
@@ -39,20 +39,15 @@ public:
 	// If not null, basic info is added for each created miniraster
 	vector<MRBasicInfo>* mrbi_list;
     
-    // used to update MRBasicInfo::mrs_row in mrbi_list:
-    // TODO remove int next_row;
-	
-	
 	/**
 	  * Creates the observer for this operation. 
 	  */
-	MiniRasterObserver(const char* aprefix, const char* pszOutputSRS)
+	MiniRasterObserver(string aprefix, const char* pszOutputSRS)
 	: prefix(aprefix), pszOutputSRS(pszOutputSRS)
 	{
 		global_info = 0;
 		hOutDS = 0;
 		mrbi_list = 0;
-        // TODO remove next_row = 0;
 	}
 	
 	
@@ -249,7 +244,6 @@ public:
             }
             
 			mrbi_list->push_back(MRBasicInfo(FID, mini_filename, mini_width, mini_height, next_row));
-            // TODO remove next_row += mini_height + globalOptions.mini_raster_separation;
 		}
 		
 		GDALClose(hOutDS);
@@ -297,7 +291,7 @@ class MiniRasterStripObserver : public MiniRasterObserver {
     bool ownMrbiList;
 	
 public:
-	MiniRasterStripObserver(const char* bfilename, const char* prefix)
+	MiniRasterStripObserver(string bfilename, string prefix)
 	: MiniRasterObserver(prefix, 0),
       basefilename(bfilename), inLayer(0), 
       outVector(0), outLayer(0), 
@@ -391,17 +385,27 @@ public:
         // create feature in output vector:
         OGRFeature *outFeature = OGRFeature::CreateFeature(outLayer->GetLayerDefn());
         
-        // TODO Add values for new fields:
-        // ...
-        
         // copy everything from incoming feature:
-        // (TODO handled selected fields as in other commands) 
+        // (TODO handle selected fields as in other commands) 
         // (TODO do not copy geometry, but set the corresponding geometry)
         outFeature->SetFrom(feature);
         
         //  make sure we release the copied geometry:
         outFeature->SetGeometryDirectly(NULL);
 
+        // handle RID column:
+        if ( globalOptions.RID != "none" ) {
+            // Add RID value if the field exists:
+            int idx = outFeature->GetFieldIndex(RID_colName);
+            if ( idx >= 0 ) {
+                string RID_value = rastr->getDataset()->GetDescription();
+                if ( globalOptions.RID == "file" ) {
+                    starspan_simplify_filename(RID_value);
+                }
+                outFeature->SetField(idx, RID_value.c_str());
+            }
+        }
+        
         // depending on the associated geometry (see below), these offsets
         // will help in locating the geometry in the strip:
         double offsetX = 0;
@@ -484,12 +488,25 @@ public:
             int strip_bands;
             rastr->getSize(NULL, NULL, &strip_bands);
             GDALDataType strip_band_type = rastr->getDataset()->GetRasterBand(1)->GetRasterDataType();
+            
+            //
+            // NOTE: in this case, we still use the hard-coded suffixes:
+            // instead of the ones given by the --xxx-suffix options.
+            // But this is not to be used normally.
+            // See starspan_minirasterstrip2()
+            //
+            string strip_filename = string(basefilename) + "_mr.img";
+            string fid_filename =   string(basefilename) + "_mrid.img";
+            string loc_filename =   string(basefilename) + "_mrloc.glt";
+            
             starspan_create_strip(
                 strip_band_type,
                 strip_bands,
                 prefix,
                 mrbi_list,
-                basefilename
+                strip_filename,
+                fid_filename,
+                loc_filename
             );
 			delete mrbi_list;
 			mrbi_list = 0;
@@ -502,8 +519,8 @@ public:
 
 Observer* starspan_getMiniRasterStripObserver(
 	Traverser& tr,
-	const char* basefilename,
-	const char* shpfilename
+	string basefilename,
+	string shpfilename
 ) {	
 	if ( !tr.getVector() ) {
 		cerr<< "vector datasource expected\n";
@@ -521,14 +538,14 @@ Observer* starspan_getMiniRasterStripObserver(
     OGRLayer* outLayer = 0;
     
     // <shp>
-    if ( shpfilename ) {
+    if ( shpfilename.length() ) {
         // prepare outVector and outLayer:
         
         if ( globalOptions.verbose ) {
             cout<< "starspan_getMiniRasterStripObserver: starting creation of output vector " <<shpfilename<< " ...\n";
         }
     
-        outVector = Vector::create(shpfilename); 
+        outVector = Vector::create(shpfilename.c_str()); 
         if ( !outVector ) {
             // errors should have been written
             return 0;
@@ -547,8 +564,16 @@ Observer* starspan_getMiniRasterStripObserver(
             return 0;
         }
         
-        // TODO Add definition for new fields (eg. RID)
-        // ...
+        // add RID column, if to be included
+        if ( globalOptions.RID != "none" ) {
+            OGRFieldDefn outField(RID_colName, OFTString);
+            if ( outLayer->CreateField(&outField) != OGRERR_NONE ) {
+                delete outVector;
+                outVector = NULL;
+                cerr<< "Creation of field failed: " <<RID_colName<< "\n";
+                return 0;
+            }
+        }
     }
     // </shp>
     
@@ -574,8 +599,8 @@ Observer* starspan_getMiniRasterStripObserver(
  * traversal-- the caller will presumably do that.
  */
 Observer* starspan_getMiniRasterStripObserver2(
-	const char* basefilename,
-	const char* prefix,
+	string basefilename,
+	string prefix,
     Vector* outVector,
     OGRLayer* outLayer,
     vector<MRBasicInfo>* mrbi_list

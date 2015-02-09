@@ -2,7 +2,7 @@
 // STARSpan project
 // Carlos A. Rueda
 // starspan_util - misc utilities
-// $Id: starspan_util.cc,v 1.15 2008-05-08 00:42:21 crueda Exp $
+// $Id: starspan_util.cc,v 1.19 2008-07-08 07:43:20 crueda Exp $
 //
 
 #include "starspan.h"           
@@ -294,7 +294,7 @@ OGRLayer* starspan_createLayer(
  *
  * @return 0 iff OK
  */
-int starspan_validate_rasters_and_masks(
+int starspan_validate_input_elements(
     Vector* vect,
     int vector_layernum,
 	vector<const char*> raster_filenames,
@@ -459,7 +459,7 @@ int starspan_validate_rasters_and_masks(
     }
 
     if ( !res && globalOptions.verbose ) {
-        cout<< "starspan_validate_rasters_and_masks: OK\n";
+        cout<< "starspan_validate_input_elements: OK\n";
         if ( vect ) {
             cout<< "  Vector: " <<vect->getName()<< ", layer " <<vector_layernum<< "\n";
         }
@@ -497,7 +497,9 @@ void starspan_create_strip(
     int strip_bands,
     string prefix,
     vector<MRBasicInfo>* mrbi_list,
-    string basefilename
+    string strip_filename,
+    string fid_filename,
+    string loc_filename
 ) {
     if ( globalOptions.verbose ) {
         cout<< "starspan_create_strip: Creating miniraster strip...\n";
@@ -561,7 +563,6 @@ void starspan_create_strip(
     
     /////////////////////////////////////////////////////////////////////
     // create strip image:
-    string strip_filename = basefilename + "_mr.img";
     GDALDataset* strip_ds = hDriver->Create(
         strip_filename.c_str(), strip_width, strip_height, strip_bands, 
         strip_band_type, 
@@ -579,7 +580,6 @@ void starspan_create_strip(
     
     /////////////////////////////////////////////////////////////////////
     // create FID 1-band image:
-    string fid_filename = basefilename + "_mrid.img";
     GDALDataset* fid_ds = hDriver->Create(
         fid_filename.c_str(), strip_width, strip_height, 1, 
         fid_band_type, 
@@ -598,7 +598,6 @@ void starspan_create_strip(
     
     /////////////////////////////////////////////////////////////////////
     // create 2-band loc image:
-    string loc_filename = basefilename + "_mrloc.glt";
     GDALDataset* loc_ds = hDriver->Create(
         loc_filename.c_str(), strip_width, strip_height, 2, 
         loc_band_type, 
@@ -829,3 +828,32 @@ void starspan_create_strip(
     // release buffer
     delete buffer;
 }
+
+
+/**
+ * Parses a string for a size.
+ * @param sizeStr the input string which may contain a suffix ("px") 
+ * @param pix_size pixel size in case suffix "px" is given
+ * @param size where the parsed size will be stored
+ * @return 0 iff OK
+ */ 
+int parseSize(const char* sizeStr, double pix_size, double *size) {
+    int readChars = 0;
+    sscanf(sizeStr, "%lf%n", size, &readChars);
+    if ( readChars > 0 ) {
+        const char* suffix = sizeStr + readChars;
+        if ( strcmp(suffix, "px") == 0 ) {
+            (*size) *= pix_size;
+        }
+        else if ( strlen(suffix) > 0 ) {
+            // invalid suffix
+            return -1;
+        }
+        return 0;   // OK
+    }
+    else {
+        // not even the value was scanned successfully:
+        return -2;
+    }
+}
+
